@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>會員登入 - Jiu-eat</title>
+    <link rel="stylesheet" href="style.css?v=2">
+</head>
+
+<body>
+
+    <!-- header 由 include.js 載入 -->
+
+    <main class="register-page">
+        <div class="register-card">
+            <h1>會員登入</h1>
+            <p class="register-subtitle">歡迎回來，繼續你的聚會生活</p>
+
+            <form id="login-form" novalidate>
+                <!-- 帳號 -->
+                <div class="form-group">
+                    <label for="account">帳號</label>
+                    <input type="text" id="account" name="account" placeholder="請輸入帳號" autocomplete="username">
+                    <span class="error-msg" id="account-error"></span>
+                </div>
+
+                <!-- 密碼 -->
+                <div class="form-group">
+                    <label for="password">密碼</label>
+                    <input type="password" id="password" name="password" placeholder="請輸入密碼" autocomplete="current-password">
+                    <span class="error-msg" id="password-error"></span>
+                </div>
+
+                <!-- 全域錯誤 / API 錯誤 -->
+                <div class="error-msg api-error" id="api-error"></div>
+
+                <button type="submit" class="btn-submit">登入</button>
+            </form>
+
+            <p class="login-link">
+                還沒有帳號？<a href="register.html">立即註冊</a>
+            </p>
+        </div>
+    </main>
+
+    <script src="include.js"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+
+            const form = document.getElementById("login-form");
+
+            const fields = {
+                account: { el: document.getElementById("account"), error: document.getElementById("account-error"), validate },
+                password: { el: document.getElementById("password"), error: document.getElementById("password-error"), validate }
+            };
+
+            const apiError = document.getElementById("api-error");
+
+            function validate(name) {
+                const field = fields[name];
+                const val = field.el.value ? field.el.value.trim() : "";
+                field.error.textContent = "";
+                field.el.classList.remove("input-error");
+
+                switch (name) {
+                    case "account":
+                        if (!val) return "請輸入帳號";
+                        break;
+                    case "password":
+                        if (!val) return "請輸入密碼";
+                        break;
+                }
+                return "";
+            }
+
+            function showError(name, msg) {
+                const field = fields[name];
+                field.error.textContent = msg;
+                if (msg) field.el.classList.add("input-error");
+            }
+
+            function validateAll() {
+                let valid = true;
+                for (const key of Object.keys(fields)) {
+                    const msg = validate(key);
+                    if (msg) {
+                        showError(key, msg);
+                        valid = false;
+                    }
+                }
+                return valid;
+            }
+
+            for (const key of Object.keys(fields)) {
+                const field = fields[key];
+                field.el.addEventListener("blur", () => {
+                    const msg = validate(key);
+                    showError(key, msg);
+                });
+                field.el.addEventListener("input", () => {
+                    field.error.textContent = "";
+                    field.el.classList.remove("input-error");
+                    apiError.textContent = "";
+                });
+            }
+
+            form.addEventListener("submit", async (e) => {
+                e.preventDefault();
+                apiError.textContent = "";
+
+                if (!validateAll()) return;
+
+                const payload = {
+                    account: fields.account.el.value.trim(),
+                    password: fields.password.el.value
+                };
+
+                const btn = form.querySelector(".btn-submit");
+                btn.textContent = "登入中...";
+                btn.disabled = true;
+
+                try {
+                    const res = await fetch("/api/login", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (!res.ok) {
+                        const data = await res.json().catch(() => ({}));
+                        throw new Error(data.message || "帳號或密碼錯誤");
+                    }
+
+                    window.location.href = "/member.html";
+
+                } catch (err) {
+                    apiError.textContent = err.message;
+                    btn.textContent = "登入";
+                    btn.disabled = false;
+                }
+            });
+        });
+    </script>
+
+</body>
+
+</html>

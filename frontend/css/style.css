@@ -1,0 +1,1372 @@
+/* ==========================================================================
+   Jiu-Eat 全域樣式表（style.css）
+   ==========================================================================
+   版面結構概覽：
+   1. CSS 變數與全域重設（:root、*、body）
+   2. 通用工具類別（.hidden、.page）
+   3. 頂部導覽列（.site-header、.main-nav）
+   4. 按鈕（.button 系列）
+   5. 首頁 Hero 區（.hero、.search-bar）
+   6. 分類與興趣標籤（.category-chip、.interest-chip）
+   7. 容器與區塊（.container、.section-title）
+   8. 活動卡片（.event-card 系列）
+   9. 篩選面板與空狀態（.filter-panel、.empty-state）
+   10. 活動詳細頁（.detail-*）
+   11. 表單（.form-card、.form-row）
+   12. 會員中心分頁（.tabs、.tab-panel）
+   13. 成員列表（.member-list、.member-item）
+   14. 認證彈窗（.modal、.auth-*）
+   15. Toast 與頁尾（.toast、footer）
+   16. 響應式斷點（1200px / 980px / 768px / 480px / 420px）
+   ========================================================================== */
+
+/* ── 1. CSS 變數與全域重設 ───────────────────────────── */
+:root {
+    /* 品牌色 */
+    --orange: #f05a28;           /* 主色（品牌橘） */
+    --orange-dark: #cf4215;      /* 主色加深（hover 用） */
+    /* 中性色 */
+    --cream: #fff8f2;            /* 米白背景 */
+    --ink: #23211f;              /* 主文字色（近黑） */
+    --muted: #706b66;            /* 次要文字色（灰） */
+    --line: #e9e3dd;             /* 分隔線 / 邊框色 */
+    --white: #fff;
+    --green: #32895b;            /* 成功狀態色（已核准） */
+    /* 陰影與圓角 */
+    --shadow: 0 12px 35px rgba(61, 42, 28, .09);   /* 通用卡片陰影 */
+    --radius: 18px               /* 通用圓角大小 */
+}
+
+/* 全域盒模型重設：讓 padding/border 包含在元素寬高內，並清空預設邊距 */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0
+}
+
+html {
+    scroll-behavior: smooth     /* 錨點捲動有平滑動畫 */
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans TC", sans-serif;
+    background: #faf9f7;        /* 頁面底色 */
+    color: var(--ink);
+    line-height: 1.65;          /* 行高：提升中文可讀性 */
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent   /* 移除行動裝置點擊反白 */
+}
+
+/* 表單元件沿用系統字型（避免繼承字型不一致） */
+button,
+input,
+select,
+textarea {
+    font: inherit
+}
+
+button {
+    cursor: pointer
+}
+
+a {
+    color: inherit
+}
+
+/* ── 2. 通用工具類別 ─────────────────────────────────── */
+.hidden {
+    display: none !important    /* 強制隱藏（優先於其他 display 設定） */
+}
+
+/* 頁面容器：預設隱藏，僅 .active 顯示（配合 SPA 切頁） */
+.page {
+    display: none;
+    min-height: calc(100vh - 72px)   /* 扣掉導覽列高度 */
+}
+
+.page.active {
+    display: block
+}
+
+/* ── 3. 頂部導覽列 ───────────────────────────────────── */
+.site-header {
+    height: 72px;
+    padding: 0 max(5vw, 24px);       /* 左右留白，隨螢幕寬度調整 */
+    background: rgba(255, 255, 255, .95);
+    backdrop-filter: blur(12px);     /* 毛玻璃效果 */
+    display: flex;
+    align-items: center;
+    justify-content: space-between;  /* Logo 在左、選單在右 */
+    position: sticky;                /* 捲動時固定在頂部 */
+    top: 0;
+    z-index: 20;
+    border-bottom: 1px solid rgba(233, 227, 221, .7)
+}
+
+.logo {
+    text-decoration: none;
+    font-size: 27px;
+    font-weight: 900;
+    letter-spacing: -1px;
+    color: var(--orange)
+}
+
+.main-nav {
+    display: flex;
+    align-items: center;
+    gap: 24px
+}
+
+.main-nav>a {
+    text-decoration: none;
+    font-weight: 650;
+    font-size: 14px
+}
+
+.main-nav>a:hover {
+    color: var(--orange)
+}
+
+.menu-button {
+    display: none;                   /* 桌面版隱藏，行動版顯示（見下方 media query） */
+    border: 0;
+    background: transparent;
+    font-size: 25px;
+    line-height: 1;
+    padding: 4px;
+    align-items: center;
+    justify-content: center
+}
+
+.header-actions {
+    display: flex;                   /* 右側群組：通知鈴鐺 + 漢堡選單 + 導覽列 */
+    align-items: center;
+    gap: 14px
+}
+
+/* ── 4. 按鈕 ─────────────────────────────────────────── */
+.button {
+    border: 1px solid transparent;
+    border-radius: 999px;            /* 橢圓形按鈕 */
+    padding: 10px 20px;
+    font-weight: 750;
+    transition: .2s                  /* hover 動畫 */
+}
+
+.button-primary {
+    background: var(--orange);
+    color: #fff
+}
+
+.button-primary:hover {
+    background: var(--orange-dark);
+    transform: translateY(-1px)      /* 微微上浮 */
+}
+
+.button-outline {
+    border-color: var(--line);       /* 空心按鈕 */
+    background: #fff
+}
+
+.button-outline:hover {
+    border-color: var(--orange);
+    color: var(--orange)
+}
+
+/* ── 5. 首頁 Hero 區 ─────────────────────────────────── */
+.hero {
+    background: radial-gradient(circle at 75% 25%, #ffd9c8 0, transparent 25%), linear-gradient(135deg, #fff9f4, #fff0e4);
+    min-height: 480px;
+    display: grid;
+    place-items: center;
+    padding: 64px 20px
+}
+
+.hero-inner {
+    text-align: center;
+    max-width: 800px
+}
+
+.eyebrow,
+.section-kicker {
+    font-size: 24px;
+    letter-spacing: 2.4px;
+    font-weight: 850;
+    color: var(--orange)             /* 區塊小標籤（Kicker）樣式 */
+}
+
+.hero h1 {
+    font-size: 52px;
+    line-height: 1.13;
+    letter-spacing: -2px;
+    margin: 15px 0 20px
+}
+
+.hero p {
+    color: var(--muted);
+    font-size: 18px
+}
+
+.search-bar {
+    display: flex;
+    max-width: 650px;
+    margin: 34px auto 0;
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 7px;
+    box-shadow: var(--shadow)
+}
+
+.search-bar input {
+    flex: 1;                         /* 輸入框自動撐滿剩餘寬度 */
+    min-width: 0;
+    border: 0;
+    outline: 0;
+    padding: 10px 18px;
+    background: transparent
+}
+
+.search-bar button {
+    border: 0;
+    border-radius: 999px;
+    padding: 11px 27px;
+    background: var(--orange);
+    color: #fff;
+    font-weight: 800
+}
+
+/* ── 6. 分類與興趣標籤 ───────────────────────────────── */
+.checkbox-group {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 8px
+}
+.interest-chip {
+    border: 1px solid var(--line);
+    background: #fff;
+    border-radius: 999px;
+    padding: 8px 15px;
+    cursor: pointer;
+    color: var(--muted);
+    user-select: none                /* 防止點選時反白文字 */
+}
+.interest-chip:has(input:checked) {
+    background: var(--ink);          /* 勾選後反黑顯示 */
+    border-color: var(--ink);
+    color: #fff
+}
+.interest-chip input { display: none }   /* 隱藏原生 checkbox，改用標籤樣式 */
+
+.categories {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-top: 26px
+}
+
+.category-chip {
+    border: 1px solid var(--line);
+    background: #fff;
+    border-radius: 999px;
+    padding: 8px 15px;
+    color: var(--muted)
+}
+
+.category-chip:hover,
+.category-chip.active {
+    background: var(--ink);          /* 選中或 hover 反黑 */
+    border-color: var(--ink);
+    color: #fff
+}
+
+/* ── 7. 容器與區塊 ───────────────────────────────────── */
+.container {
+    width: min(1180px, calc(100% - 40px));   /* 最多 1180px，小螢幕時留邊距 */
+    margin: auto
+}
+
+.page-content {
+    padding-top: 58px;
+    padding-bottom: 78px
+}
+
+/* 相鄰兩個活動區塊之間留間距 */
+.events-section+.events-section {
+    margin-top: 60px
+}
+
+.section-title {
+    display: flex;
+    align-items: end;
+    justify-content: space-between;
+    margin-bottom: 22px
+}
+
+.section-title h2,
+.page-heading h1 {
+    font-size: 30px;
+    letter-spacing: -.6px
+}
+
+.section-title a {
+    color: var(--orange);
+    text-decoration: none;
+    font-weight: 700
+}
+
+.section-note,
+.page-heading p {
+    color: var(--muted)
+}
+
+/* ── 8. 活動卡片 ─────────────────────────────────────── */
+.events-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));   /* 桌面版一行 4 張 */
+    gap: 22px
+}
+
+.event-card {
+    border: 0;
+    background: #fff;
+    border-radius: var(--radius);
+    overflow: hidden;
+    box-shadow: 0 5px 22px rgba(43, 35, 28, .07);
+    text-align: left;
+    transition: .2s;
+    width: 100%
+}
+
+.event-card:hover {
+    transform: translateY(-4px);     /* hover 上浮效果 */
+    box-shadow: var(--shadow)
+}
+
+.card-img {
+    height: 175px;
+    background: #eee center/cover no-repeat;   /* 圖片背景填滿 */
+    position: relative
+}
+
+.card-tag {
+    position: absolute;              /* 疊在圖片左上角的分類標籤 */
+    left: 12px;
+    top: 12px;
+    background: rgba(35, 33, 31, .82);
+    color: #fff;
+    padding: 4px 10px;
+    border-radius: 99px;
+    font-size: 12px
+}
+
+.card-content {
+    padding: 17px
+}
+
+.event-title {
+    font-size: 16px;
+    font-weight: 850;
+    white-space: nowrap;             /* 過長文字省略號處理 */
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 8px
+}
+
+.event-info {
+    display: grid;
+    gap: 4px;
+    color: var(--muted);
+    font-size: 13px
+}
+
+.card-footer {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px solid #f1ece7;
+    font-size: 12px
+}
+
+.status-badge {
+    color: var(--orange);
+    font-weight: 800
+}
+
+/* ── 9. 篩選面板與空狀態 ─────────────────────────────── */
+.empty-state {
+    padding: 46px;
+    text-align: center;
+    background: #fff;
+    border: 1px dashed var(--line);
+    border-radius: var(--radius);
+    color: var(--muted)
+}
+
+.page-heading {
+    margin-bottom: 28px
+}
+
+.filter-panel {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr auto;   /* 關鍵字(寬) + 分類 + 城市 + 按鈕 */
+    gap: 12px;
+    background: #fff;
+    padding: 18px;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    margin-bottom: 28px
+}
+
+/* 篩選與表單輸入框共用樣式 */
+.filter-panel input,
+.filter-panel select,
+.form-card input,
+.form-card select,
+.form-card textarea,
+.auth-form input {
+    width: 100%;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: #fff;
+    padding: 12px 14px;
+    outline: none
+}
+
+/* 輸入框聚焦時顯示橘色外框與光暈 */
+.filter-panel input:focus,
+.filter-panel select:focus,
+.form-card input:focus,
+.form-card select:focus,
+.form-card textarea:focus,
+.auth-form input:focus {
+    border-color: var(--orange);
+    box-shadow: 0 0 0 3px rgba(240, 90, 40, .1)
+}
+
+.load-more {
+    display: block;
+    margin: 30px auto 0
+}
+
+.text-button {
+    border: 0;
+    background: transparent;
+    color: var(--orange);
+    font-weight: 800;
+    margin-bottom: 20px
+}
+
+/* ── 10. 活動詳細頁 ───────────────────────────────────── */
+.detail-card {
+    background: #fff;
+    border-radius: 24px;
+    box-shadow: var(--shadow);
+    overflow: hidden
+}
+
+.detail-image {
+    height: 380px;
+    background: #eee center/cover no-repeat
+}
+
+.detail-body {
+    padding: 34px
+}
+
+.detail-body h1 {
+    font-size: 34px;
+    line-height: 1.25;
+    margin: 8px 0 18px
+}
+
+.detail-meta {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);   /* 兩欄顯示活動資訊 */
+    gap: 12px;
+    margin: 20px 0;
+    padding: 20px;
+    background: var(--cream);
+    border-radius: 14px
+}
+
+.detail-description {
+    white-space: pre-wrap;                   /* 保留說明文字的換行 */
+    color: #544f4b;
+    margin: 20px 0
+}
+
+.detail-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 24px
+}
+
+/* ── 11. 表單 ─────────────────────────────────────────── */
+.narrow {
+    max-width: 820px
+}
+
+.form-card {
+    background: #fff;
+    border-radius: var(--radius);
+    padding: 28px;
+    box-shadow: var(--shadow);
+    display: grid;
+    gap: 18px
+}
+
+.form-card label,
+.auth-form label {
+    font-weight: 750;
+    font-size: 14px;
+    display: grid;
+    gap: 7px
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;          /* 兩欄並排的表單列 */
+    gap: 16px
+}
+
+.form-actions {
+    display: flex;
+    gap: 10px
+}
+
+/* ── 12. 會員中心分頁 ─────────────────────────────────── */
+.tabs {
+    display: flex;
+    gap: 8px;
+    border-bottom: 1px solid var(--line);
+    margin-bottom: 24px;
+    overflow-x: auto                          /* 行動版可橫向捲動 */
+}
+
+.tab {
+    border: 0;
+    background: transparent;
+    padding: 12px 17px;
+    font-weight: 800;
+    color: var(--muted);
+    white-space: nowrap
+}
+
+.tab.active {
+    color: var(--orange);                     /* 目前分頁：橘色 + 底部線 */
+    border-bottom: 3px solid var(--orange)
+}
+
+.tab-panel {
+    display: none
+}
+
+.tab-panel.active {
+    display: block
+}
+
+.narrow-card {
+    max-width: 650px
+}
+
+/* ── 13. 成員列表（會員中心 / 申請審核） ─────────────── */
+.member-list {
+    display: grid;
+    gap: 14px
+}
+
+.member-item {
+    background: #fff;
+    border-radius: 14px;
+    padding: 18px;
+    box-shadow: 0 4px 16px rgba(43, 35, 28, .06);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 15px
+}
+
+.member-item h3 {
+    font-size: 17px
+}
+
+.member-item p {
+    font-size: 13px;
+    color: var(--muted)
+}
+
+.member-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap
+}
+
+.small {
+    padding: 7px 12px;
+    font-size: 12px
+}
+
+.status {
+    display: inline-block;                    /* 申請狀態徽章 */
+    padding: 3px 9px;
+    border-radius: 99px;
+    background: #f1efec;
+    font-size: 12px;
+    font-weight: 800
+}
+
+.status.approved {
+    color: var(--green);                      /* 已核准：綠色 */
+    background: #e9f6ef
+}
+
+.status.rejected,
+.status.cancelled {
+    color: #a44235;                           /* 已拒絕 / 已取消：紅色 */
+    background: #fbecea
+}
+
+/* ── 14. 認證彈窗 ─────────────────────────────────────── */
+.modal {
+    position: fixed;                          /* 全螢幕遮罩 */
+    inset: 0;
+    z-index: 50;
+    background: rgba(26, 23, 20, .55);
+    display: grid;
+    place-items: center;
+    padding: 20px
+}
+
+.modal-card {
+    position: relative;
+    width: min(460px, 100%);
+    max-height: 90vh;
+    overflow: auto;
+    background: #fff;
+    border-radius: 24px;
+    padding: 28px;
+    box-shadow: 0 25px 80px rgba(0, 0, 0, .25)
+}
+
+.modal-close {
+    position: absolute;
+    right: -20px;
+    top: -28px;
+    border: 0;
+    background: transparent;
+    font-size: 24px;
+    color: var(--muted);
+    z-index: 1
+}
+
+.auth-tabs {
+    display: flex;
+    gap: 5px;
+    margin-bottom: 22px;
+    position: relative
+}
+
+.auth-tab {
+    flex: 1;                                  /* 登入/註冊分頁各佔一半 */
+    border: 0;
+    background: #f5f2ef;
+    padding: 10px;
+    border-radius: 10px;
+    font-weight: 800
+}
+
+.auth-tab.active {
+    background: var(--orange);
+    color: #fff
+}
+
+.auth-form {
+    display: none;
+    gap: 16px
+}
+
+.auth-form.active {
+    display: grid                             /* 目前顯示的登入/註冊表單 */
+}
+
+.auth-form h2 {
+    margin: 4px 0
+}
+
+.full {
+    width: 100%;
+    margin-top: 4px
+}
+
+.demo-hint {
+    font-size: 12px;
+    color: var(--muted);
+    text-align: center
+}
+
+/* ── 14.5 通知鈴鐺與面板 ─────────────────────────────── */
+.notification-bell {
+    position: relative;                       /* 徽章以絕對定位疊在鈴鐺右上角 */
+    border: 0;
+    background: #ffeadf;                      /* 淺橘圓形底，讓鈴鐺更清楚 */
+    border-radius: 50%;
+    width: 38px;
+    height: 38px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--orange);                     /* 鈴鐺圖示使用品牌橘色 */
+    line-height: 1;
+    flex-shrink: 0;
+    transition: background .2s
+}
+
+.notification-bell:hover {
+    background: #ffddca
+}
+
+.bell-icon {
+    width: 22px;
+    height: 22px;
+    display: block;
+    flex-shrink: 0
+}
+
+.notification-badge {
+    position: absolute;
+    top: -3px;
+    right: -5px;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 4px;
+    border-radius: 99px;
+    background: var(--ink);                   /* 深色徽章，與橘底區分 */
+    color: #fff;
+    font-size: 11px;
+    font-weight: 800;
+    display: grid;
+    place-items: center;
+    line-height: 1
+}
+
+.notification-panel {
+    position: fixed;
+    top: 80px;
+    right: max(5vw, 24px);
+    z-index: 45;
+    width: min(360px, calc(100vw - 28px));
+    background: #fff;
+    border-radius: 18px;
+    box-shadow: var(--shadow);
+    border: 1px solid var(--line);
+    overflow: hidden
+}
+
+.notification-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--line);
+    font-weight: 800
+}
+
+.notification-read-all {
+    border: 0;
+    background: transparent;
+    color: var(--orange);
+    font-size: 13px;
+    font-weight: 800
+}
+
+.notification-list {
+    max-height: 380px;
+    overflow-y: auto;
+    display: grid
+}
+
+.notification-item {
+    padding: 14px 16px;
+    border-bottom: 1px solid #f1ece7;
+    cursor: pointer;
+    text-align: left
+}
+
+.notification-item:hover {
+    background: var(--cream)
+}
+
+.notification-item.unread {
+    background: #fff6ef
+}
+
+.notification-item.unread .notification-message {
+    color: var(--ink);
+    font-weight: 800
+}
+
+.notification-message {
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--muted)
+}
+
+.notification-meta {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 4px
+}
+
+.notification-empty {
+    padding: 30px 16px;
+    text-align: center;
+    color: var(--muted)
+}
+
+/* ── 15. Toast 與頁尾 ─────────────────────────────────── */
+.toast {
+    position: fixed;
+    left: 50%;
+    top: 50%;
+    z-index: 80;                              /* 置中疊在最上層 */
+    transform: translate(-50%, -50%);
+    background: var(--ink);
+    color: #fff;
+    padding: 12px 20px;
+    border-radius: 99px;
+    box-shadow: var(--shadow)
+}
+
+footer {
+    text-align: center;
+    background: #25211e;
+    color: #fff;
+    padding: 42px 20px
+}
+
+footer strong {
+    font-size: 22px;
+    color: #ff986f
+}
+
+footer p {
+    color: #cfc8c1;
+    margin-top: 4px
+}
+
+/* ── 16. 響應式斷點 ───────────────────────────────────── */
+/* 平板（≤1200px）：卡片由 4 欄改為 3 欄 */
+@media(max-width:1200px) {
+    .events-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr))
+    }
+}
+
+/* 小平板（≤980px）：卡片改為 2 欄，篩選面板改為兩欄 */
+@media(max-width:980px) {
+    .events-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr))
+    }
+    .filter-panel {
+        grid-template-columns: 1fr 1fr
+    }
+
+    .filter-panel .button {
+        grid-column: span 2                   /* 按鈕佔滿一整列 */
+    }
+}
+
+/* 手機（≤768px）：改為行動版配置 */
+@media(max-width:768px) {
+    body {
+        font-size: 14px
+    }
+
+    .site-header {
+        height: 56px
+    }
+
+    .logo {
+        font-size: 20px
+    }
+
+    .menu-button {
+        display: flex                 /* 顯示漢堡選單按鈕（flex 垂直置中，與鈴鐺對齊） */
+    }
+
+    .main-nav {
+        display: none;                        /* 選單改為下拉式 */
+        position: absolute;
+        left: 14px;
+        right: 14px;
+        top: 70px;
+        background: #fff;
+        padding: 16px;
+        border-radius: 16px;
+        box-shadow: var(--shadow);
+        flex-direction: column;
+        align-items: stretch
+    }
+
+    .main-nav.open {
+        display: flex                         /* 點選按鈕後展開 */
+    }
+
+    .main-nav a,
+    .main-nav button {
+        text-align: center
+    }
+
+    .hero {
+        min-height: 100vh;
+        padding: 40px 18px;
+        place-items: center start
+    }
+
+    .hero p {
+        font-size: 13px
+    }
+
+    .hero h1 {
+        font-size: 36px
+    }
+
+    .hero-inner {
+        max-width: 100%;
+        text-align: left
+    }
+
+    .search-bar {
+        margin: 25px 0 0
+    }
+
+    .categories {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);   /* 分類改為三欄網格 */
+        gap: 8px;
+        justify-content: flex-start;
+        margin-top: 20px
+    }
+
+    .category-chip {
+        padding: 10px 8px;
+        font-size: 12px
+    }
+
+    .container {
+        width: min(100% - 28px, 1180px)
+    }
+
+    .page-content {
+        padding-top: 36px;
+        padding-bottom: 55px
+    }
+
+    .events-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px
+    }
+
+    .home-page .events-grid {
+        grid-template-columns: repeat(2, 1fr)
+    }
+
+    .event-card {
+        display: grid;
+        grid-template-columns: 1fr
+    }
+
+    .card-img {
+        height: 110px
+    }
+
+    .card-content {
+        padding: 12px
+    }
+
+    .event-title {
+        font-size: 13px;
+        margin-bottom: 4px
+    }
+
+    .event-info {
+        font-size: 11px;
+        gap: 2px
+    }
+
+    .card-footer {
+        align-items: flex-start;
+        flex-direction: column;
+        margin-top: 10px;
+        padding-top: 8px;
+        font-size: 10px
+    }
+
+    .section-title h2,
+    .page-heading h1 {
+        font-size: 22px
+    }
+
+    .filter-panel {
+        grid-template-columns: 1fr;           /* 篩選面板改為單欄 */
+        padding: 14px;
+        gap: 10px
+    }
+
+    .filter-panel .button {
+        grid-column: auto
+    }
+
+    .detail-image {
+        height: 200px
+    }
+
+    .detail-body {
+        padding: 18px
+    }
+
+    .detail-body h1 {
+        font-size: 22px
+    }
+
+    .detail-meta {
+        grid-template-columns: 1fr;
+        padding: 14px;
+        gap: 10px
+    }
+
+    .detail-actions {
+        flex-direction: column                /* 按鈕改為直向排列 */
+    }
+
+    .detail-actions .button {
+        width: 100%;
+        text-align: center
+    }
+
+    .search-bar {
+        flex-direction: column;
+        border-radius: 18px;
+        padding: 6px
+    }
+
+    .search-bar input {
+        text-align: left;
+        padding: 12px 14px
+    }
+
+    .search-bar button {
+        width: 100%;
+        padding: 12px
+    }
+
+    .form-card {
+        padding: 18px;
+        gap: 14px
+    }
+
+    .form-row {
+        grid-template-columns: 1fr;           /* 表單列改為單欄 */
+        gap: 14px
+    }
+
+    .form-actions {
+        flex-direction: column
+    }
+
+    .form-actions .button {
+        width: 100%;
+        text-align: center
+    }
+
+    .member-item {
+        align-items: flex-start;
+        flex-direction: column;
+        padding: 14px
+    }
+
+    .member-actions {
+        width: 100%
+    }
+
+    .member-actions .button {
+        flex: 1;
+        text-align: center;
+        font-size: 11px
+    }
+
+    .modal-card {
+        padding: 20px 16px;
+        border-radius: 18px
+    }
+
+    .auth-form {
+        gap: 12px
+    }
+
+    .auth-form h2 {
+        text-align: left
+    }
+
+    .demo-hint {
+        text-align: left
+    }
+
+    .page-heading p {
+        text-align: left
+    }
+
+    .section-note {
+        text-align: left
+    }
+
+    .page-heading {
+        margin-bottom: 18px
+    }
+
+    .page-heading h1 {
+        font-size: 20px
+    }
+
+    .empty-state {
+        padding: 30px 16px
+    }
+
+    .tabs {
+        margin-bottom: 16px;
+        gap: 4px
+    }
+
+    .tab {
+        padding: 10px 12px;
+        font-size: 12px
+    }
+
+    .narrow-card {
+        max-width: 100%
+    }
+}
+
+/* 小手機（≤480px）：再縮小卡片與文字 */
+@media(max-width:480px) {
+    .events-grid {
+        gap: 14px
+    }
+
+    .categories {
+        grid-template-columns: repeat(2, 1fr)
+    }
+
+    .hero h1 {
+        font-size: 28px
+    }
+
+    .hero p {
+        font-size: 12px
+    }
+
+    .eyebrow {
+        font-size: 18px
+    }
+
+    .card-img {
+        height: 140px
+    }
+
+    .container {
+        width: calc(100% - 24px)
+    }
+
+    .section-title {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 4px
+    }
+
+    .section-title h2,
+    .page-heading h1 {
+        font-size: 20px
+    }
+
+    .detail-body h1 {
+        font-size: 20px
+    }
+
+    .modal-card {
+        padding: 18px 14px
+    }
+
+    body {
+        font-size: 13px
+    }
+}
+
+/* 極窄手機（≤420px）：最終縮放 */
+@media(max-width:420px) {
+    .site-header {
+        height: 50px;
+        padding: 0 max(4vw, 14px)
+    }
+
+    .logo {
+        font-size: 18px
+    }
+
+    .hero {
+        min-height: 92vh;
+        padding: 28px 14px
+    }
+
+    .hero h1 {
+        font-size: 24px
+    }
+
+    .hero-inner {
+        text-align: left
+    }
+
+    .container {
+        width: calc(100% - 18px)
+    }
+
+    .page-content {
+        padding-top: 26px;
+        padding-bottom: 42px
+    }
+
+    .events-grid {
+        gap: 10px
+    }
+
+    .home-page .events-grid {
+        grid-template-columns: 1fr            /* 首頁卡片改為單欄 */
+    }
+
+    .card-img {
+        height: 120px
+    }
+
+    .card-content {
+        padding: 10px
+    }
+
+    .event-title {
+        font-size: 12px
+    }
+
+    .event-info {
+        font-size: 10px
+    }
+
+    .card-footer {
+        font-size: 9px
+    }
+
+    .section-title h2,
+    .page-heading h1 {
+        font-size: 18px
+    }
+
+    .category-chip {
+        padding: 8px 6px;
+        font-size: 11px
+    }
+
+    .categories {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 6px
+    }
+
+    .detail-body h1 {
+        font-size: 18px
+    }
+
+    .detail-body {
+        padding: 14px
+    }
+
+    .filter-panel {
+        padding: 10px;
+        gap: 6px
+    }
+
+    .filter-panel input,
+    .filter-panel select {
+        padding: 9px 10px;
+        font-size: 12px
+    }
+
+    .button {
+        padding: 10px 14px;
+        font-size: 12px
+    }
+
+    .search-bar {
+        border-radius: 14px;
+        padding: 5px
+    }
+
+    .search-bar input {
+        padding: 10px 12px;
+        font-size: 13px
+    }
+
+    .search-bar button {
+        padding: 10px;
+        font-size: 13px
+    }
+
+    .form-card {
+        padding: 14px;
+        gap: 12px
+    }
+
+    .form-row {
+        gap: 10px
+    }
+
+    .detail-meta {
+        font-size: 12px
+    }
+
+    .modal-card {
+        padding: 16px 12px;
+        border-radius: 16px
+    }
+
+    .auth-form {
+        gap: 10px
+    }
+
+    .tabs {
+        gap: 2px
+    }
+
+    .tab {
+        padding: 8px 10px;
+        font-size: 11px
+    }
+
+    .member-item {
+        padding: 12px
+    }
+
+    .member-item h3 {
+        font-size: 14px
+    }
+
+    .member-actions .button {
+        font-size: 10px
+    }
+
+    body {
+        font-size: 12px
+    }
+}

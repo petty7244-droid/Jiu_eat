@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<!-- 文件型別宣告：HTML5 -->
+<html lang="zh-TW">
+<!-- lang="zh-TW"：宣告頁面語言為繁體中文，利於瀏覽器與搜尋引擎判讀 -->
+<head>
+  <!-- 頁面中繼資料與資源載入區 -->
+  <meta charset="UTF-8">                                        <!-- 字元編碼：UTF-8（支援中文） -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">  <!-- 響應式設計：依裝置寬度縮放 -->
+  <title>Jiu-Eat｜一起吃飯，一起認識新朋友</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🍱%3C/text%3E%3C/svg%3E">
+  <link rel="stylesheet" href="./css/style.css?v=3">            <!-- 載入全域樣式表（v=3：避免瀏覽器快取舊樣式） -->
+  <script src="./js/app.js?v=3" defer></script>                 <!-- 載入主程式（defer：等 HTML 解析完再執行） -->
+</head>
+<body>
+  <!-- 網站頂部導覽列：Logo、行動版選單按鈕、主要導覽連結 -->
+  <header class="site-header">
+    <a class="logo" href="#home">Jiu-Eat</a>                    <!-- 點擊回到首頁 -->
+    <div class="header-actions">
+      <!-- 通知鈴鐺（僅登入後顯示）：桌面版在選單右側群組，手機版常駐在漢堡按鈕旁 -->
+      <button id="notification-bell" class="notification-bell member-only hidden" aria-label="通知">
+        <svg class="bell-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        <span id="notification-badge" class="notification-badge hidden">0</span>
+      </button>
+      <button id="menu-button" class="menu-button" aria-label="開啟選單">☰</button>  <!-- 行動版漢堡選單按鈕 -->
+      <nav id="main-nav" class="main-nav" aria-label="主要選單">
+        <a href="#home">首頁</a>                                <!-- 依 hash 路由切換頁面 -->
+        <a href="#activities">探索聚會</a>                      <!-- 活動列表頁 -->
+        <a href="#member" class="member-only hidden">會員中心</a> <!-- 僅登入後顯示（JS 控制） -->
+        <button id="auth-button" class="button button-outline">登入／註冊</button>  <!-- 登入/登出按鈕 -->
+        <button id="create-button" class="button button-primary">發起聚會</button>  <!-- 建立活動按鈕 -->
+      </nav>
+    </div>
+  </header>
+
+  <!-- 通知面板：點鈴鐺圖示展開，顯示活動報名通知 -->
+  <div id="notification-panel" class="notification-panel hidden">
+    <div class="notification-header"><span>通知中心</span><button id="notification-read-all" class="notification-read-all">全部標記已讀</button></div>
+    <div id="notification-list" class="notification-list"><p class="notification-empty">目前沒有通知。</p></div>
+  </div>
+
+  <main>
+    <!-- 首頁（預設顯示頁） -->
+    <section id="home-page" class="page active">
+      <div class="hero">
+        <div class="hero-inner">
+          <span class="eyebrow">Jiu-Eat 聚會活動平台</span>
+          <h1>尋找有趣的靈魂，從揪食開始</h1>
+          <p>探索美食、桌遊、戶外活動和咖啡聚會，找到同樣興趣的新朋友。</p>
+          <!-- 首頁搜尋列：提交後跳到活動列表頁並帶入關鍵字 -->
+          <form id="home-search-form" class="search-bar">
+            <input id="home-keyword" type="search" placeholder="搜尋活動名稱、活動說明、活動縣市、發起人......" aria-label="搜尋活動">
+            <button type="submit">搜尋</button>
+          </form>
+          <!-- 熱門分類捷徑：點擊即跳到列表頁並套用該分類篩選 -->
+          <div class="categories" id="home-categories">
+            <button class="category-chip active" data-category="">🔥 最夯聚會</button>  <!-- data-category 空字串 = 全部分類 -->
+            <button class="category-chip" data-category="美食饗宴">🍱 美食饗宴</button>
+            <button class="category-chip" data-category="桌遊派對">🎲 桌遊派對</button>
+            <button class="category-chip" data-category="歡唱KTV">🎤 歡唱KTV</button>
+            <button class="category-chip" data-category="戶外運動">⛰️ 戶外運動</button>
+            <button class="category-chip" data-category="咖啡閒聊">☕ 咖啡閒聊</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="container page-content">
+        <!-- 熱門聚會區塊：由 JS 載入並渲染活動卡片 -->
+        <section class="events-section">
+          <div class="section-title"><div><span class="section-kicker">TRENDING</span><h2>熱門聚會</h2></div><a href="#activities">查看全部 →</a></div>
+          <div id="popular-grid" class="events-grid"></div>
+          <p id="home-empty" class="empty-state hidden">目前還沒有活動，登入後建立第一場聚會吧！</p>
+        </section>
+        <!-- 推薦聚會區塊：登入後依興趣與地區推薦 -->
+        <section class="events-section">
+          <div class="section-title"><div><span class="section-kicker">FOR YOU</span><h2>推薦給你</h2></div></div>
+          <p id="recommendation-note" class="section-note">登入後，系統會依你的興趣與居住縣市推薦活動。</p>
+          <div id="recommendation-grid" class="events-grid"></div>
+        </section>
+      </div>
+    </section>
+
+    <!-- 探索聚會頁：關鍵字 / 分類 / 城市篩選 -->
+    <section id="activities-page" class="page container page-content">
+      <div class="page-heading"><span class="section-kicker">EXPLORE</span><h1>探索聚會</h1><p>使用關鍵字、分類或地區找到想參加的活動。</p></div>
+      <form id="filter-form" class="filter-panel">
+        <input id="filter-keyword" type="search" placeholder="搜尋活動名稱或發起人......">
+        <select id="filter-category"><option value="">全部分類</option><option>美食饗宴</option><option>桌遊派對</option><option>歡唱KTV</option><option>戶外運動</option><option>咖啡閒聊</option></select>
+        <input id="filter-city" type="text" placeholder="地區，例如：台北">
+        <button class="button button-primary" type="submit">篩選搜尋</button>
+      </form>
+      <div id="activities-grid" class="events-grid"></div>                <!-- 活動卡片渲染位置 -->
+      <button id="load-more-button" class="button button-outline load-more hidden">載入更多</button>  <!-- 一次載入 8 筆 -->
+      <p id="activities-empty" class="empty-state hidden">找不到符合條件的活動。</p>
+    </section>
+
+    <!-- 活動詳細頁：由 JS 依 hash 載入對應活動資料 -->
+    <section id="activity-detail-page" class="page container page-content">
+      <article id="activity-detail" class="detail-card"></article>       <!-- 詳細內容渲染位置 -->
+    </section>
+
+    <!-- 發起 / 編輯聚會頁：共用同一個表單（依 #activity-id 判斷新增或編輯） -->
+    <section id="activity-form-page" class="page container page-content narrow">
+      <div class="page-heading"><span class="section-kicker">HOST</span><h1 id="activity-form-title">發起聚會</h1><p>填寫活動資訊，邀請適合的夥伴加入。</p></div>
+      <form id="activity-form" class="form-card">
+        <input id="activity-id" type="hidden">                            <!-- 隱藏欄位：編輯模式時存放活動編號 -->
+        <label>活動名稱<input name="title" required maxlength="200"></label>          <!-- 活動名稱（必填） -->
+        <label>活動說明<textarea name="description" rows="4" placeholder="介紹活動內容與注意事項"></textarea></label>  <!-- 活動詳細說明 -->
+        <div class="form-row"><label>活動分類<select name="category" required><option value="">請選擇</option><option>美食饗宴</option><option>桌遊派對</option><option>歡唱KTV</option><option>戶外運動</option><option>咖啡閒聊</option></select></label><label>活動縣市<input name="city" required placeholder="台北市"></label></div>  <!-- 分類與城市（皆必填） -->
+        <label>詳細地點<input name="location_name" required placeholder="店名或集合地點"></label>  <!-- 活動詳細地點（必填） -->
+        <div class="form-row"><label>活動日期時間<input name="activity_date" type="datetime-local" required></label><label>報名截止時間<input name="deadline" type="datetime-local" required></label></div>  <!-- 活動時間與截止時間 -->
+        <div class="form-row"><label>人數上限<input name="max_participants" type="number" min="1" max="100" value="6" required></label><label>封面圖片網址<input name="image_url" type="url" placeholder="https://..."></label></div>  <!-- 人數上限與封面圖 -->
+        <div class="form-actions"><button class="button button-primary" type="submit">儲存活動</button><button class="button button-outline" type="button" data-back>退出返回</button><button class="button button-outline" type="button" data-delete-form hidden>刪除活動</button></div>  <!-- 表單操作按鈕（刪除僅編輯模式顯示） -->
+      </form>
+    </section>
+
+    <!-- 會員中心頁：個人資料、我建立的、我的申請（分頁切換） -->
+    <section id="member-page" class="page container page-content">
+      <div class="page-heading"><span class="section-kicker">MEMBER</span><h1>會員中心</h1><p id="member-welcome"></p></div>
+      <div class="tabs" role="tablist"><button class="tab active" data-tab="profile-panel">個人資料</button><button class="tab" data-tab="created-panel">我建立的</button><button class="tab" data-tab="applied-panel">我的申請</button></div>
+      <!-- 個人資料分頁：編輯基本資料、興趣與偏好料理（送出時由 JS 驗證至少各勾選 3 項；Email 不可修改） -->
+      <section id="profile-panel" class="tab-panel active">
+        <form id="profile-form" class="form-card narrow-card"><label>Email<input name="email" disabled></label><label>顯示名稱<input name="display_name" required></label><label>性別<select name="gender"><option value="">請選擇</option><option value="男">男</option><option value="女">女</option><option value="其他">其他</option></select></label><label>年齡<input name="age" type="number" min="0" max="150" placeholder="25"></label><label>星座<select name="zodiac"><option value="">請選擇</option><option value="牡羊座">牡羊座</option><option value="金牛座">金牛座</option><option value="雙子座">雙子座</option><option value="巨蟹座">巨蟹座</option><option value="獅子座">獅子座</option><option value="處女座">處女座</option><option value="天秤座">天秤座</option><option value="天蠍座">天蠍座</option><option value="射手座">射手座</option><option value="摩羯座">摩羯座</option><option value="水瓶座">水瓶座</option><option value="雙魚座">雙魚座</option></select></label><label>職業<input name="occupation" placeholder="工程師"></label><label>居住縣市<select name="city"><option value="">請選擇</option><option value="台北市">台北市</option><option value="新北市">新北市</option><option value="桃園市">桃園市</option><option value="台中市">台中市</option><option value="台南市">台南市</option><option value="高雄市">高雄市</option><option value="基隆市">基隆市</option><option value="新竹市">新竹市</option><option value="新竹縣">新竹縣</option><option value="苗栗縣">苗栗縣</option><option value="彰化縣">彰化縣</option><option value="南投縣">南投縣</option><option value="雲林縣">雲林縣</option><option value="嘉義市">嘉義市</option><option value="嘉義縣">嘉義縣</option><option value="屏東縣">屏東縣</option><option value="宜蘭縣">宜蘭縣</option><option value="花蓮縣">花蓮縣</option><option value="台東縣">台東縣</option><option value="澎湖縣">澎湖縣</option><option value="金門縣">金門縣</option><option value="連江縣">連江縣</option></select></label><label>居住區域<input name="district" placeholder="士林區"></label><label>興趣</label><div class="checkbox-group"><label class="interest-chip"><input type="checkbox" name="interests" value="cosplay"><span>cosplay</span></label><label class="interest-chip"><input type="checkbox" name="interests" value="手工藝"><span>手工藝</span></label><label class="interest-chip"><input type="checkbox" name="interests" value="打球"><span>打球</span></label><label class="interest-chip"><input type="checkbox" name="interests" value="收藏"><span>收藏</span></label><label class="interest-chip"><input type="checkbox" name="interests" value="志工"><span>志工</span></label><label class="interest-chip"><input type="checkbox" name="interests" value="咖啡"><span>咖啡</span></label><label class="interest-chip"><input type="checkbox" name="interests" value="品酒"><span>品酒</span></label><label class="interest-chip"><input type="checkbox" name="interests" value="看電影"><span>看電影</span></label><label class="interest-chip"><input type="checkbox" name="interests" value="看劇"><span>看劇</span></label><label class="interest-chip"><input type="checkbox" name="interests" value="音樂"><span>音樂</span></label><label class="interest-chip"><input type="checkbox" name="interests" value="冥想"><span>冥想</span></label><label class="interest-chip"><input type="checkbox" name="interests" value="料理研究"><span>料理研究</span></label><label class="interest-chip"><input type="checkbox" name="interests" value="旅遊"><span>旅遊</span></label><label class="interest-chip"><input type="checkbox" name="interests" value="書法"><span>書法</span></label><label class="interest-chip"><input type="checkbox" name="interests" value="烘焙"><span>烘焙</span></label><label class="interest-chip"><input type="checkbox" name="interests" value="健身"><span>健身</span></label><label class="interest-chip"><input type="checkbox" name="interests" value="烹飪"><span>烹飪</span></label><label class="interest-chip"><input type="checkbox" name="interests" value="逛街"><span>逛街</span></label><label class="interest-chip"><input type="checkbox" name="interests" value="釣魚"><span>釣魚</span></label><label class="interest-chip"><input type="checkbox" name="interests" value="喝茶"><span>喝茶</span></label><label class="interest-chip"><input type="checkbox" name="interests" value="圍棋"><span>圍棋</span></label><label class="interest-chip"><input type="checkbox" name="interests" value="游泳"><span>游泳</span></label><label class="interest-chip"><input type="checkbox" name="interests" value="登山"><span>登山</span></label><label class="interest-chip"><input type="checkbox" name="interests" value="程式設計"><span>程式設計</span></label><label class="interest-chip"><input type="checkbox" name="interests" value="象棋"><span>象棋</span></label><label class="interest-chip"><input type="checkbox" name="interests" value="跑步"><span>跑步</span></label><label class="interest-chip"><input type="checkbox" name="interests" value="開車兜風"><span>開車兜風</span></label><label class="interest-chip"><input type="checkbox" name="interests" value="園藝"><span>園藝</span></label><label class="interest-chip"><input type="checkbox" name="interests" value="瑜珈"><span>瑜珈</span></label><label class="interest-chip"><input type="checkbox" name="interests" value="運動"><span>運動</span></label><label class="interest-chip"><input type="checkbox" name="interests" value="電玩"><span>電玩</span></label><label class="interest-chip"><input type="checkbox" name="interests" value="舞蹈"><span>舞蹈</span></label><label class="interest-chip"><input type="checkbox" name="interests" value="寫作"><span>寫作</span></label><label class="interest-chip"><input type="checkbox" name="interests" value="模型"><span>模型</span></label><label class="interest-chip"><input type="checkbox" name="interests" value="閱讀"><span>閱讀</span></label><label class="interest-chip"><input type="checkbox" name="interests" value="騎車"><span>騎車</span></label><label class="interest-chip"><input type="checkbox" name="interests" value="寵物"><span>寵物</span></label><label class="interest-chip"><input type="checkbox" name="interests" value="繪畫"><span>繪畫</span></label><label class="interest-chip"><input type="checkbox" name="interests" value="攝影"><span>攝影</span></label><label class="interest-chip"><input type="checkbox" name="interests" value="露營"><span>露營</span></label></div><label>偏好料理</label><div class="checkbox-group"><label class="interest-chip"><input type="checkbox" name="preferred_cuisine" value="小吃"><span>小吃</span></label><label class="interest-chip"><input type="checkbox" name="preferred_cuisine" value="中式料理"><span>中式料理</span></label><label class="interest-chip"><input type="checkbox" name="preferred_cuisine" value="日式料理"><span>日式料理</span></label><label class="interest-chip"><input type="checkbox" name="preferred_cuisine" value="火鍋"><span>火鍋</span></label><label class="interest-chip"><input type="checkbox" name="preferred_cuisine" value="台式料理"><span>台式料理</span></label><label class="interest-chip"><input type="checkbox" name="preferred_cuisine" value="印度料理"><span>印度料理</span></label><label class="interest-chip"><input type="checkbox" name="preferred_cuisine" value="地中海料理"><span>地中海料理</span></label><label class="interest-chip"><input type="checkbox" name="preferred_cuisine" value="西班牙料理"><span>西班牙料理</span></label><label class="interest-chip"><input type="checkbox" name="preferred_cuisine" value="法式料理"><span>法式料理</span></label><label class="interest-chip"><input type="checkbox" name="preferred_cuisine" value="美式料理"><span>美式料理</span></label><label class="interest-chip"><input type="checkbox" name="preferred_cuisine" value="泰式料理"><span>泰式料理</span></label><label class="interest-chip"><input type="checkbox" name="preferred_cuisine" value="海鮮料理"><span>海鮮料理</span></label><label class="interest-chip"><input type="checkbox" name="preferred_cuisine" value="素食料理"><span>素食料理</span></label><label class="interest-chip"><input type="checkbox" name="preferred_cuisine" value="甜點"><span>甜點</span></label><label class="interest-chip"><input type="checkbox" name="preferred_cuisine" value="異國料理"><span>異國料理</span></label><label class="interest-chip"><input type="checkbox" name="preferred_cuisine" value="越南料理"><span>越南料理</span></label><label class="interest-chip"><input type="checkbox" name="preferred_cuisine" value="義式料理"><span>義式料理</span></label><label class="interest-chip"><input type="checkbox" name="preferred_cuisine" value="墨西哥料理"><span>墨西哥料理</span></label><label class="interest-chip"><input type="checkbox" name="preferred_cuisine" value="燒烤"><span>燒烤</span></label><label class="interest-chip"><input type="checkbox" name="preferred_cuisine" value="韓式料理"><span>韓式料理</span></label></div><label>自我介紹<textarea name="bio" rows="4"></textarea></label><div class="form-actions"><button class="button button-primary" type="submit">儲存更新</button><button class="button button-outline" type="button" data-back>退出返回</button></div></form>
+      </section>
+      <!-- 我建立的活動列表（JS 渲染） -->
+      <section id="created-panel" class="tab-panel"><div id="created-list" class="member-list"></div></section>
+      <!-- 我的申請列表（JS 渲染） -->
+      <section id="applied-panel" class="tab-panel"><div id="applied-list" class="member-list"></div></section>
+    </section>
+  </main>
+
+  <!-- 認證視窗（登入 / 註冊彈窗，預設隱藏） -->
+  <div id="auth-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="auth-title">
+    <div class="modal-card">
+      <!-- 登入/註冊分頁切換 + 關閉按鈕 -->
+      <div class="auth-tabs"><button class="auth-tab active" data-auth-tab="login-form">登入</button><button class="auth-tab" data-auth-tab="register-form">註冊</button><button id="close-auth" class="modal-close" aria-label="關閉">×</button></div>
+      <!-- 登入表單（預設顯示） -->
+      <form id="login-form" class="auth-form active"><h2 id="auth-title">歡迎回來</h2><label>Email<input name="email" type="email" required></label><label>密碼<input name="password" type="password" required></label><button class="button button-primary full" type="submit">登入</button><p class="demo-hint">展示帳號：amy@example.com／password123</p></form>
+      <!-- 註冊表單 -->
+      <form id="register-form" class="auth-form"><h2>建立 Jiu-Eat 帳號</h2><label>顯示名稱<input name="display_name" required></label><label>Email<input name="email" type="email" required></label><label>密碼（至少 8 碼）<input name="password" type="password" minlength="8" required></label><button class="button button-primary full" type="submit">註冊</button></form>
+    </div>
+  </div>
+  <!-- Toast 提示訊息（暫時的提示文字，自動消失） -->
+  <div id="toast" class="toast hidden" role="status"></div>
+  <!-- 頁尾 -->
+  <footer><strong>© Jiu-Eat</strong><p>一起吃飯，一起認識新朋友。</p></footer>
+</body>
+</html>

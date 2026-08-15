@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>會員註冊 - Jiu-eat</title>
+    <link rel="stylesheet" href="style.css?v=2">
+</head>
+
+<body>
+
+    <!-- header 由 include.js 載入 -->
+
+    <main class="register-page">
+        <div class="register-card">
+            <h1>會員註冊</h1>
+            <p class="register-subtitle">加入揪食，開始你的聚會生活</p>
+
+            <form id="register-form" novalidate>
+                <!-- 帳號 -->
+                <div class="form-group">
+                    <label for="account">帳號</label>
+                    <input type="text" id="account" name="account" placeholder="請輸入帳號" autocomplete="username">
+                    <span class="error-msg" id="account-error"></span>
+                </div>
+
+                <!-- Email -->
+                <div class="form-group">
+                    <label for="email">Email</label>
+                    <input type="email" id="email" name="email" placeholder="example@email.com" autocomplete="email">
+                    <span class="error-msg" id="email-error"></span>
+                </div>
+
+                <!-- 密碼 -->
+                <div class="form-group">
+                    <label for="password">密碼</label>
+                    <input type="password" id="password" name="password" placeholder="至少 8 碼" autocomplete="new-password">
+                    <span class="error-msg" id="password-error"></span>
+                </div>
+
+                <!-- 確認密碼 -->
+                <div class="form-group">
+                    <label for="confirm-password">確認密碼</label>
+                    <input type="password" id="confirm-password" name="confirmPassword" placeholder="再次輸入密碼" autocomplete="new-password">
+                    <span class="error-msg" id="confirm-password-error"></span>
+                </div>
+
+                <!-- 顯示名稱 -->
+                <div class="form-group">
+                    <label for="display-name">顯示名稱</label>
+                    <input type="text" id="display-name" name="displayName" placeholder="其他成員將看到此名稱">
+                    <span class="error-msg" id="display-name-error"></span>
+                </div>
+
+                <!-- 服務條款 -->
+                <div class="form-group terms-group">
+                    <label class="terms-label">
+                        <input type="checkbox" id="terms" name="terms">
+                        <span>我已閱讀並同意 <a href="#" class="terms-link">服務條款</a> 與 <a href="#" class="terms-link">隱私政策</a></span>
+                    </label>
+                    <span class="error-msg" id="terms-error"></span>
+                </div>
+
+                <!-- 全域錯誤 / API 錯誤 -->
+                <div class="error-msg api-error" id="api-error"></div>
+
+                <button type="submit" class="btn-submit">送出註冊</button>
+            </form>
+
+            <p class="login-link">
+                已有帳號？<a href="login.html">登入</a>
+            </p>
+        </div>
+    </main>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+
+            const form = document.getElementById("register-form");
+
+            const fields = {
+                account: { el: document.getElementById("account"), error: document.getElementById("account-error"), validate },
+                email: { el: document.getElementById("email"), error: document.getElementById("email-error"), validate },
+                password: { el: document.getElementById("password"), error: document.getElementById("password-error"), validate },
+                confirmPassword: { el: document.getElementById("confirm-password"), error: document.getElementById("confirm-password-error"), validate },
+                displayName: { el: document.getElementById("display-name"), error: document.getElementById("display-name-error"), validate },
+                terms: { el: document.getElementById("terms"), error: document.getElementById("terms-error"), validate }
+            };
+
+            const apiError = document.getElementById("api-error");
+
+            function validate( name ) {
+                const field = fields[name];
+                const val = field.el.value ? field.el.value.trim() : "";
+                field.error.textContent = "";
+                field.el.classList.remove("input-error");
+
+                switch (name) {
+                    case "account":
+                        if (!val) return "請輸入帳號";
+                        break;
+                    case "email":
+                        if (!val) return "請輸入 Email";
+                        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)) return "Email 格式不正確";
+                        break;
+                    case "password":
+                        if (!val) return "請輸入密碼";
+                        if (val.length < 8) return "密碼長度至少 8 碼";
+                        break;
+                    case "confirmPassword":
+                        if (!val) return "請再次輸入密碼";
+                        if (val !== fields.password.el.value) return "與密碼不一致";
+                        break;
+                    case "displayName":
+                        if (!val) return "顯示名稱不可為空";
+                        break;
+                    case "terms":
+                        if (!fields.terms.el.checked) return "必須同意服務條款";
+                        break;
+                }
+                return "";
+            }
+
+            function showError(name, msg) {
+                const field = fields[name];
+                field.error.textContent = msg;
+                if (msg) field.el.classList.add("input-error");
+            }
+
+            function validateAll() {
+                let valid = true;
+                for (const key of Object.keys(fields)) {
+                    const msg = validate(key);
+                    if (msg) {
+                        showError(key, msg);
+                        valid = false;
+                    }
+                }
+                return valid;
+            }
+
+            // 即時驗證（blur 時）
+            for (const key of Object.keys(fields)) {
+                const field = fields[key];
+                field.el.addEventListener("blur", () => {
+                    const msg = validate(key);
+                    showError(key, msg);
+                });
+                field.el.addEventListener("input", () => {
+                    field.error.textContent = "";
+                    field.el.classList.remove("input-error");
+                    apiError.textContent = "";
+                });
+            }
+
+            form.addEventListener("submit", async (e) => {
+                e.preventDefault();
+                apiError.textContent = "";
+
+                if (!validateAll()) return;
+
+                const payload = {
+                    account: fields.account.el.value.trim(),
+                    email: fields.email.el.value.trim(),
+                    password: fields.password.el.value,
+                    displayName: fields.displayName.el.value.trim()
+                };
+
+                const btn = form.querySelector(".btn-submit");
+                btn.textContent = "註冊中...";
+                btn.disabled = true;
+
+                try {
+                    const res = await fetch("/api/register", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (!res.ok) {
+                        const data = await res.json().catch(() => ({}));
+                        throw new Error(data.message || "註冊失敗，請稍後再試");
+                    }
+
+                    window.location.href = "/member.html";
+
+                } catch (err) {
+                    apiError.textContent = err.message;
+                    btn.textContent = "送出註冊";
+                    btn.disabled = false;
+                }
+            });
+        });
+    </script>
+
+    <script src="include.js"></script>
+</body>
+
+</html>

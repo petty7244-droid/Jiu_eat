@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jiu-eat - 揪食聚會活動平台</title>
+    <link rel="stylesheet" href="style.css?v=2">
+</head>
+
+<body>
+
+    <!-- header 由 include.js 載入 -->
+
+    <!-- 主視覺區塊 -->
+    <section class="hero">
+        <h1>尋找有趣的靈魂，從揪食開始</h1>
+        <p>最夯的社交聚會平台，隨時隨地開啟聚會與邂逅</p>
+
+        <div class="search-bar">
+            <input type="text" placeholder="搜尋美食、桌遊、戶外運動、唱歌...">
+            <button>搜尋</button>
+        </div>
+
+        <!-- 主題標籤 -->
+        <div class="categories">
+            <div class="category-chip active">🔥 最夯聚會</div>
+            <div class="category-chip">🍱 美食饗宴</div>
+            <div class="category-chip">🎲 桌遊派對</div>
+            <div class="category-chip">🎤 歡唱 KTV</div>
+            <div class="category-chip">⛰️ 戶外運動</div>
+            <div class="category-chip">☕ 咖啡閒聊</div>
+        </div>
+    </section>
+
+    <!-- 主要內容 container -->
+    <main class="container">
+
+        <!-- 區塊 1：近期熱門聚會 -->
+        <div class="events-section">
+            <div class="section-title">
+                <h2>推薦聚會</h2>
+                <a href="#">查看更多 ></a>
+            </div>
+
+            <div class="events-grid" id="hot-events-grid"></div>
+        </div>
+
+        <!-- 區塊 2：即將成團聚會（改為 JS 動態渲染） -->
+        <div class="events-section">
+            <div class="section-title">
+                <h2>熱門聚會</h2>
+                <a href="#">查看更多 ></a>
+            </div>
+
+            <!-- 動態生成卡片的容器 -->
+            <div class="events-grid" id="upcoming-events-grid"></div>
+        </div>
+        <!-- 區塊 3：最新聚會 -->
+        <div class="events-section">
+            <div class="section-title">
+                <h2>最新聚會</h2>
+                <a href="#">查看更多 ></a>
+            </div>
+
+            <div class="events-grid" id="latest-events-grid"></div>
+        </div>
+
+    </main>
+
+    <!-- JavaScript 生成卡片-->
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+
+            const sampleCards = [
+                {
+                    tag: "🍱 美食饗宴",
+                    title: "週末預約困難店！日式和牛燒肉團",
+                    location: "📍 台北市大安區",
+                    time: "⏰ 10/24 (六) 18:30",
+                    host: "Eric",
+                    status: "還缺 2 人",
+                    img: "https://picsum.photos/400/300?random=10",
+                    avatar: "https://picsum.photos/50?random=10"
+                },
+                {
+                    tag: "🎲 桌遊派對",
+                    title: "新手友善！阿瓦隆 & 狼人殺歡樂夜",
+                    location: "📍 新北市板橋區",
+                    time: "⏰ 10/25 (日) 14:00",
+                    host: "Jessica",
+                    status: "還缺 4 人",
+                    img: "https://picsum.photos/400/300?random=20",
+                    avatar: "https://picsum.photos/50?random=11"
+                },
+                {
+                    tag: "☕ 咖啡閒聊",
+                    title: "創業與自由職業者下午茶交流會",
+                    location: "📍 台北市信義區",
+                    time: "⏰ 10/28 (三) 15:00",
+                    host: "Alex",
+                    status: "報名即將截止",
+                    img: "https://picsum.photos/400/300?random=30",
+                    avatar: "https://picsum.photos/50?random=12"
+                },
+                {
+                    tag: "🎤 歡唱 KTV",
+                    title: "錢櫃夜唱團 流行金曲狂歡夜",
+                    location: "📍 台北市中山區",
+                    time: "⏰ 10/30 (五) 23:00",
+                    host: "Amber",
+                    status: "還缺 1 人",
+                    img: "https://picsum.photos/400/300?random=40",
+                    avatar: "https://picsum.photos/50?random=13"
+                }
+            ];
+
+            function renderEvents(containerId, count) {
+                const container = document.getElementById(containerId);
+                let html = "";
+                for (let i = 0; i < count; i++) {
+                    const data = sampleCards[i % sampleCards.length];
+                    html += `
+                        <div class="event-card">
+                            <div class="card-img" style="background-image: url('${data.img}');">
+                                <span class="card-tag">${data.tag}</span>
+                            </div>
+                            <div class="card-content">
+                                <div class="event-title">${data.title}</div>
+                                <div class="event-info">
+                                    <span>${data.location}</span>
+                                    <span>${data.time}</span>
+                                </div>
+                                <div class="card-footer">
+                                    <div class="host-info">
+                                        <div class="avatar" style="background-image: url('${data.avatar}'); background-size: cover;"></div>
+                                        <span>${data.host}</span>
+                                    </div>
+                                    <span class="status-badge">${data.status}</span>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+                container.innerHTML = html;
+            }
+
+            renderEvents("hot-events-grid", 4);
+            renderEvents("latest-events-grid", 4);
+
+            const targetCardCount = 8;
+            const finalCount = Math.ceil(targetCardCount / 4) * 4;
+            renderEvents("upcoming-events-grid", finalCount);
+
+            // 漢堡選單邏輯已移至 include.js
+        });
+    </script>
+
+    <script src="include.js"></script>
+</body>
+
+</html>
