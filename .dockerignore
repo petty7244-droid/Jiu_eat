@@ -1,0 +1,10 @@
+.venv/
+.git/
+docs/
+__pycache__/
+*.pyc
+.DS_Store
+.vscode/
+.idea/
+*.log
+uv.lock
