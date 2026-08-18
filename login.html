@@ -28,7 +28,8 @@
                 <!-- 密碼 -->
                 <div class="form-group">
                     <label for="password">密碼</label>
-                    <input type="password" id="password" name="password" placeholder="請輸入密碼" autocomplete="current-password">
+                    <input type="password" id="password" name="password" placeholder="請輸入密碼"
+                        autocomplete="current-password">
                     <span class="error-msg" id="password-error"></span>
                 </div>
 
@@ -121,10 +122,11 @@
                 btn.disabled = true;
 
                 try {
-                    const res = await fetch("/api/login", {
+                    const base = (window.__API_BASE__ || "").replace(/\/+$/, "");
+                    const res = await fetch(`${base}/api/login`, {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify(payload)
+                        body: JSON.stringify({ email: payload.account, password: payload.password })
                     });
 
                     if (!res.ok) {

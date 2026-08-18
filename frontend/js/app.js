@@ -15,7 +15,7 @@
 
 // ── 全域設定與狀態 ──────────────────────────────────────
 
-const API_BASE = "";                                          // API 基礎路徑（同源，因此為空字串）
+const API_BASE = window.__API_BASE__ || "";                  // API 基礎路徑（可由 window.__API_BASE__ 覆寫，預設為同源）
 const state = { activities: [], visible: 8, currentActivity: null };  // 全域狀態（活動列表、顯示數量、目前檢視的活動）
 const $ = (selector) => document.querySelector(selector);     // 單一元素選擇器簡寫
 const $$ = (selector) => [...document.querySelectorAll(selector)];    // 多元素選擇器（展開為陣列）
@@ -300,7 +300,7 @@ async function loadMember() {
     // 渲染建立的活動列表
     $("#created-list").innerHTML = data.created.length ? data.created.map((item) => `<div class="member-item"><div><h3>${escapeHtml(item.title)}</h3><p>${formatDate(item.activity_date)}・${escapeHtml(item.city)}</p></div><div class="member-actions"><button class="button button-outline small" data-activity-id="${item.id}">查看</button><button class="button button-primary small" data-edit-id="${item.id}">編輯</button></div></div>`).join("") : `<p class="empty-state">你還沒有建立活動。</p>`;
     // 渲染申請的活動列表
-    $("#applied-list").innerHTML = data.applications.length ? data.applications.map((item) => `<div class="member-item"><div><h3>${escapeHtml(item.activity_title)}</h3><p>申請時間 ${formatDate(item.created_at)}</p></div><div class="member-actions"><span class="status ${item.status}">${({pending:"待審核",approved:"已核准",rejected:"已拒絕",cancelled:"取消報名"})[item.status]}</span>${item.status === "pending" ? `<button class="button button-outline small" data-cancel-id="${item.id}">取消申請</button>` : ""}</div></div>`).join("") : `<p class="empty-state">你目前沒有活動申請。</p>`;
+    $("#applied-list").innerHTML = data.applications.length ? data.applications.map((item) => `<div class="member-item"><div><h3>${escapeHtml(item.activity_title)}</h3><p>申請時間 ${formatDate(item.created_at)}</p></div><div class="member-actions"><span class="status ${item.status}">${({ pending: "待審核", approved: "已核准", rejected: "已拒絕", cancelled: "取消報名" })[item.status]}</span>${item.status === "pending" ? `<button class="button button-outline small" data-cancel-id="${item.id}">取消申請</button>` : ""}</div></div>`).join("") : `<p class="empty-state">你目前沒有活動申請。</p>`;
   } catch (error) { showToast(error.message); }
 }
 
@@ -314,8 +314,8 @@ function prepareActivityForm(item = null) {
   $("#activity-form").querySelector("[data-delete-form]").hidden = !item;
   if (!item) return;
   // 編輯模式：填入現有資料
-  ["title","description","category","city","location_name","max_participants","image_url"].forEach((key) => form.elements[key].value = item[key] || "");
-  form.elements.activity_date.value = item.activity_date.slice(0,16); form.elements.deadline.value = item.deadline.slice(0,16);
+  ["title", "description", "category", "city", "location_name", "max_participants", "image_url"].forEach((key) => form.elements[key].value = item[key] || "");
+  form.elements.activity_date.value = item.activity_date.slice(0, 16); form.elements.deadline.value = item.deadline.slice(0, 16);
 }
 
 
@@ -341,7 +341,7 @@ document.addEventListener("click", async (event) => {
   // 返回首頁
   if (event.target.closest("[data-back]")) { location.hash = "#home"; return; }
   // 刪除活動表單（從表單內刪除）
-  if (event.target.matches("[data-delete-form]")) { if (!confirm("確定刪除這場活動嗎？")) return; const id = $("#activity-id").value; try { await api(`/api/activities/${id}`, {method:"DELETE"}); showToast("活動已刪除"); state.currentActivity = null; location.hash="#home"; } catch(e){ showToast(e.message); } return; }
+  if (event.target.matches("[data-delete-form]")) { if (!confirm("確定刪除這場活動嗎？")) return; const id = $("#activity-id").value; try { await api(`/api/activities/${id}`, { method: "DELETE" }); showToast("活動已刪除"); state.currentActivity = null; location.hash = "#home"; } catch (e) { showToast(e.message); } return; }
   // 編輯活動（從詳細頁進入）
   if (event.target.matches("[data-edit-activity]")) { prepareActivityForm(state.currentActivity); showPage("activity-form"); return; }
   // 查看申請列表
@@ -349,26 +349,26 @@ document.addEventListener("click", async (event) => {
   // 退出返回（從詳細頁回到首頁）
   if (event.target.matches("[data-exit-activity]")) { location.hash = "#home"; return; }
   // 申請參加活動
-  if (event.target.matches("[data-apply-activity]")) { if (!requireLogin()) return; if (parseTaipei(state.currentActivity.deadline) <= new Date()) { showToast("報名已截止"); return; } const message = prompt("想對發起人說什麼？（可留空）") ?? ""; try { await api(`/api/activities/${state.currentActivity.id}/applications`, { method:"POST", body:JSON.stringify({message}) }); showToast("申請已送出"); openDetail(state.currentActivity.id); } catch(e){ showToast(e.message); } return; }
+  if (event.target.matches("[data-apply-activity]")) { if (!requireLogin()) return; if (parseTaipei(state.currentActivity.deadline) <= new Date()) { showToast("報名已截止"); return; } const message = prompt("想對發起人說什麼？（可留空）") ?? ""; try { await api(`/api/activities/${state.currentActivity.id}/applications`, { method: "POST", body: JSON.stringify({ message }) }); showToast("申請已送出"); openDetail(state.currentActivity.id); } catch (e) { showToast(e.message); } return; }
   // 取消報名（從活動詳細頁）
-  const cancelActivity = event.target.closest("[data-activity-cancel]"); if (cancelActivity) { if (!confirm("確定取消報名？")) return; try { await api(`/api/applications/${cancelActivity.dataset.activityCancel}/cancel`, {method:"PUT"}); showToast("已取消報名"); openDetail(state.currentActivity.id); } catch(e){ showToast(e.message); } return; }
+  const cancelActivity = event.target.closest("[data-activity-cancel]"); if (cancelActivity) { if (!confirm("確定取消報名？")) return; try { await api(`/api/applications/${cancelActivity.dataset.activityCancel}/cancel`, { method: "PUT" }); showToast("已取消報名"); openDetail(state.currentActivity.id); } catch (e) { showToast(e.message); } return; }
   // 刪除活動（從詳細頁）
-  if (event.target.matches("[data-delete-activity]")) { if (!confirm("確定刪除這場活動嗎？")) return; try { await api(`/api/activities/${state.currentActivity.id}`, {method:"DELETE"}); showToast("活動已刪除"); state.currentActivity = null; location.hash="#home"; } catch(e){ showToast(e.message); } return; }
+  if (event.target.matches("[data-delete-activity]")) { if (!confirm("確定刪除這場活動嗎？")) return; try { await api(`/api/activities/${state.currentActivity.id}`, { method: "DELETE" }); showToast("活動已刪除"); state.currentActivity = null; location.hash = "#home"; } catch (e) { showToast(e.message); } return; }
   // 編輯活動（從會員中心列表）
   const edit = event.target.closest("[data-edit-id]"); if (edit) { const item = await api(`/api/activities/${edit.dataset.editId}`); prepareActivityForm(item); showPage("activity-form"); return; }
   // 核准/拒絕申請
-  for (const action of ["approve","reject"]) { const btn=event.target.closest(`[data-${action}-id]`); if(btn){ try{ await api(`/api/applications/${btn.dataset[`${action}Id`]}/${action}`,{method:"PUT"}); await reviewApplicants(); showToast("申請狀態已更新"); }catch(e){showToast(e.message)} return; }}
+  for (const action of ["approve", "reject"]) { const btn = event.target.closest(`[data-${action}-id]`); if (btn) { try { await api(`/api/applications/${btn.dataset[`${action}Id`]}/${action}`, { method: "PUT" }); await reviewApplicants(); showToast("申請狀態已更新"); } catch (e) { showToast(e.message) } return; } }
   // 取消申請
-  const cancel=event.target.closest("[data-cancel-id]"); if(cancel){ try{ await api(`/api/applications/${cancel.dataset.cancelId}/cancel`,{method:"PUT"}); await loadMember(); showToast("已取消申請"); }catch(e){showToast(e.message)} }
+  const cancel = event.target.closest("[data-cancel-id]"); if (cancel) { try { await api(`/api/applications/${cancel.dataset.cancelId}/cancel`, { method: "PUT" }); await loadMember(); showToast("已取消申請"); } catch (e) { showToast(e.message) } }
 });
 
 
 // ── 綁定事件監聽器 ──────────────────────────────────────
 
 // 登入/登出按鈕
-$("#auth-button").addEventListener("click", async () => { if(memberId()){ try { await api("/api/logout", {method:"POST"}); } catch {} sessionStorage.clear(); updateAuthUi(); loadHome(); showToast("已登出");} else openAuth(); });
+$("#auth-button").addEventListener("click", async () => { if (memberId()) { try { await api("/api/logout", { method: "POST" }); } catch { } sessionStorage.clear(); updateAuthUi(); loadHome(); showToast("已登出"); } else openAuth(); });
 // 建立活動按鈕
-$("#create-button").addEventListener("click", () => { if(requireLogin()) location.hash="#create"; });
+$("#create-button").addEventListener("click", () => { if (requireLogin()) location.hash = "#create"; });
 // 表單選單開關
 $("#menu-button").addEventListener("click", () => $("#main-nav").classList.toggle("open"));
 // 通知鈴鐺：切換通知面板
@@ -383,55 +383,55 @@ document.addEventListener("click", (event) => {
 // 關閉認證視窗
 $("#close-auth").addEventListener("click", closeAuth);
 // 點擊遮罩關閉認證視窗
-$("#auth-modal").addEventListener("click", (e) => { if(e.target.id === "auth-modal") closeAuth(); });
+$("#auth-modal").addEventListener("click", (e) => { if (e.target.id === "auth-modal") closeAuth(); });
 // 認證分頁切換
 $$(".auth-tab").forEach((tab) => tab.addEventListener("click", () => switchAuthTab(tab.dataset.authTab)));
 
 // 登入表單送出
-$("#login-form").addEventListener("submit", async (e) => { e.preventDefault(); const form=new FormData(e.target); try{const data=await api("/api/login",{method:"POST",body:JSON.stringify(Object.fromEntries(form))}); sessionStorage.setItem("memberId",data.member_id);sessionStorage.setItem("displayName",data.display_name);sessionStorage.setItem("token",data.token);updateAuthUi();loadUnreadCount();closeAuth();loadHome();showToast("登入成功");}catch(error){showToast(error.message)} });
+$("#login-form").addEventListener("submit", async (e) => { e.preventDefault(); const form = new FormData(e.target); try { const data = await api("/api/login", { method: "POST", body: JSON.stringify(Object.fromEntries(form)) }); sessionStorage.setItem("memberId", data.member_id); sessionStorage.setItem("displayName", data.display_name); sessionStorage.setItem("token", data.token); updateAuthUi(); loadUnreadCount(); closeAuth(); loadHome(); showToast("登入成功"); } catch (error) { showToast(error.message) } });
 // 註冊表單送出
-$("#register-form").addEventListener("submit", async (e) => { e.preventDefault(); const btn = e.target.querySelector('button[type="submit"]'); if (btn.disabled) return; btn.disabled = true; const payload=Object.fromEntries(new FormData(e.target)); try{await api("/api/register",{method:"POST",body:JSON.stringify(payload)});showToast("註冊成功，請登入");switchAuthTab("login-form");$("#login-form").elements.email.value=payload.email;$("#login-form").elements.password.value="";}catch(error){showToast(error.message)} finally{btn.disabled=false;} });
+$("#register-form").addEventListener("submit", async (e) => { e.preventDefault(); const btn = e.target.querySelector('button[type="submit"]'); if (btn.disabled) return; btn.disabled = true; const payload = Object.fromEntries(new FormData(e.target)); try { await api("/api/register", { method: "POST", body: JSON.stringify(payload) }); showToast("註冊成功，請登入"); switchAuthTab("login-form"); $("#login-form").elements.email.value = payload.email; $("#login-form").elements.password.value = ""; } catch (error) { showToast(error.message) } finally { btn.disabled = false; } });
 
 // 首頁搜尋表單
-$("#home-search-form").addEventListener("submit", (e) => { e.preventDefault(); $("#filter-keyword").value=$("#home-keyword").value; location.hash="#activities"; });
+$("#home-search-form").addEventListener("submit", (e) => { e.preventDefault(); $("#filter-keyword").value = $("#home-keyword").value; location.hash = "#activities"; });
 // 首頁分類篩選
-$$("#home-categories .category-chip").forEach((chip) => chip.addEventListener("click", () => { $("#filter-category").value=chip.dataset.category; location.hash="#activities"; }));
+$$("#home-categories .category-chip").forEach((chip) => chip.addEventListener("click", () => { $("#filter-category").value = chip.dataset.category; location.hash = "#activities"; }));
 // 活動列表篩選表單
-$("#filter-form").addEventListener("submit", (e) => { e.preventDefault(); loadActivities().catch(error=>showToast(error.message)); });
+$("#filter-form").addEventListener("submit", (e) => { e.preventDefault(); loadActivities().catch(error => showToast(error.message)); });
 // 載入更多按鈕
-$("#load-more-button").addEventListener("click", () => { state.visible+=8; renderActivityList(); });
+$("#load-more-button").addEventListener("click", () => { state.visible += 8; renderActivityList(); });
 // 會員中心分頁切換
-$$(".tab").forEach((tab) => tab.addEventListener("click", () => { $$(".tab").forEach(t=>t.classList.remove("active")); $$(".tab-panel").forEach(p=>p.classList.remove("active")); tab.classList.add("active"); $(`#${tab.dataset.tab}`).classList.add("active"); }));
+$$(".tab").forEach((tab) => tab.addEventListener("click", () => { $$(".tab").forEach(t => t.classList.remove("active")); $$(".tab-panel").forEach(p => p.classList.remove("active")); tab.classList.add("active"); $(`#${tab.dataset.tab}`).classList.add("active"); }));
 
 // 個人資料表單送出（含興趣與偏好料理驗證）
-$("#profile-form").addEventListener("submit", async(e)=>{
+$("#profile-form").addEventListener("submit", async (e) => {
   e.preventDefault();
-  const form=e.target;
+  const form = e.target;
   // 收集已勾選的興趣（至少 3 項）
-  const checkedInterests=[...form.querySelectorAll('input[name="interests"]:checked')].map(cb=>cb.value);
+  const checkedInterests = [...form.querySelectorAll('input[name="interests"]:checked')].map(cb => cb.value);
   // 前端驗證：至少勾選 3 項興趣，未達標則中止送出
-  if(checkedInterests.length<3){showToast("請至少選擇 3 項興趣");return;}
+  if (checkedInterests.length < 3) { showToast("請至少選擇 3 項興趣"); return; }
   // 收集已勾選的偏好料理
-  const checkedCuisines=[...form.querySelectorAll('input[name="preferred_cuisine"]:checked')].map(cb=>cb.value);
+  const checkedCuisines = [...form.querySelectorAll('input[name="preferred_cuisine"]:checked')].map(cb => cb.value);
   // 組裝表單資料並送出
-  const fd=new FormData(form);
-  fd.set("interests",checkedInterests.join(","));
-  fd.set("preferred_cuisine",checkedCuisines.join(","));
-  const payload=Object.fromEntries(fd);
+  const fd = new FormData(form);
+  fd.set("interests", checkedInterests.join(","));
+  fd.set("preferred_cuisine", checkedCuisines.join(","));
+  const payload = Object.fromEntries(fd);
   delete payload.email;                                     // Email 不可修改
-  try{const data=await api(`/api/members/${memberId()}`,{method:"PUT",body:JSON.stringify(payload)});sessionStorage.setItem("displayName",data.display_name);updateAuthUi();showToast("個人資料已更新");}catch(error){showToast(error.message)}
+  try { const data = await api(`/api/members/${memberId()}`, { method: "PUT", body: JSON.stringify(payload) }); sessionStorage.setItem("displayName", data.display_name); updateAuthUi(); showToast("個人資料已更新"); } catch (error) { showToast(error.message) }
 });
 
 // 活動表單送出（新增或編輯）
-$("#activity-form").addEventListener("submit", async(e)=>{
+$("#activity-form").addEventListener("submit", async (e) => {
   e.preventDefault();
-  const payload=Object.fromEntries(new FormData(e.target));
+  const payload = Object.fromEntries(new FormData(e.target));
   if (payload.image_url && !/^https?:\/\//i.test(payload.image_url)) { showToast("封面圖片網址必須以 http:// 或 https:// 開頭"); return; }  // 與後端一致：只允許 http/https
-  payload.max_participants=Number(payload.max_participants);
-  payload.activity_date=payload.activity_date+":00";        // 補齊秒數
-  payload.deadline=payload.deadline+":00";
-  const id=$("#activity-id").value;
-  try{const data=await api(id?`/api/activities/${id}`:"/api/activities",{method:id?"PUT":"POST",body:JSON.stringify(payload)});showToast(id?"活動已更新":"活動已建立");openDetail(data.id);}catch(error){showToast(error.message)}
+  payload.max_participants = Number(payload.max_participants);
+  payload.activity_date = payload.activity_date + ":00";        // 補齊秒數
+  payload.deadline = payload.deadline + ":00";
+  const id = $("#activity-id").value;
+  try { const data = await api(id ? `/api/activities/${id}` : "/api/activities", { method: id ? "PUT" : "POST", body: JSON.stringify(payload) }); showToast(id ? "活動已更新" : "活動已建立"); openDetail(data.id); } catch (error) { showToast(error.message) }
 });
 
 
