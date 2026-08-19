@@ -68,6 +68,8 @@ class Activity(Base):
     organizer = relationship("Member", back_populates="activities")
     # 一對多關聯：活動 → 申請（cascade 表示刪除活動時連帶刪除相關申請）
     applications = relationship("Application", back_populates="activity", cascade="all, delete-orphan")
+    # 一對多關聯：活動 → 照片
+    photos = relationship("ActivityPhoto", back_populates="activity", cascade="all, delete-orphan")
 
 
 class Application(Base):
@@ -104,6 +106,21 @@ class Notification(Base):
     activity = relationship("Activity")
     # 多對一關聯：通知 → 會員（取得 member 即為收件人會員物件）
     member = relationship("Member")
+
+
+class ActivityPhoto(Base):
+    """活動照片資料表：儲存活動的圖片與說明"""
+    __tablename__ = "activity_photos"
+
+    id = Column(Integer, primary_key=True, index=True)                       # 照片編號（主鍵）
+    activity_id = Column(Integer, ForeignKey("activities.id"), nullable=False, index=True)  # 所屬活動（外鍵→activities.id）
+    image_url = Column(String(500), nullable=False, default="")              # 圖片網址（必填）
+    caption = Column(String(200), default="")                                # 圖片說明
+    sort_order = Column(Integer, default=0)                                  # 排序（越小越前面）
+    created_at = Column(DateTime, default=taipei_now)                        # 建立時間（預設為現在）
+
+    # 多對一關聯：照片 → 活動（取得 activity 即為活動物件）
+    activity = relationship("Activity", back_populates="photos")
 
 
 

@@ -35,14 +35,16 @@
                 <!-- 密碼 -->
                 <div class="form-group">
                     <label for="password">密碼</label>
-                    <input type="password" id="password" name="password" placeholder="至少 8 碼" autocomplete="new-password">
+                    <input type="password" id="password" name="password" placeholder="至少 8 碼"
+                        autocomplete="new-password">
                     <span class="error-msg" id="password-error"></span>
                 </div>
 
                 <!-- 確認密碼 -->
                 <div class="form-group">
                     <label for="confirm-password">確認密碼</label>
-                    <input type="password" id="confirm-password" name="confirmPassword" placeholder="再次輸入密碼" autocomplete="new-password">
+                    <input type="password" id="confirm-password" name="confirmPassword" placeholder="再次輸入密碼"
+                        autocomplete="new-password">
                     <span class="error-msg" id="confirm-password-error"></span>
                 </div>
 
@@ -57,7 +59,8 @@
                 <div class="form-group terms-group">
                     <label class="terms-label">
                         <input type="checkbox" id="terms" name="terms">
-                        <span>我已閱讀並同意 <a href="#" class="terms-link">服務條款</a> 與 <a href="#" class="terms-link">隱私政策</a></span>
+                        <span>我已閱讀並同意 <a href="#" class="terms-link">服務條款</a> 與 <a href="#"
+                                class="terms-link">隱私政策</a></span>
                     </label>
                     <span class="error-msg" id="terms-error"></span>
                 </div>
@@ -90,7 +93,7 @@
 
             const apiError = document.getElementById("api-error");
 
-            function validate( name ) {
+            function validate(name) {
                 const field = fields[name];
                 const val = field.el.value ? field.el.value.trim() : "";
                 field.error.textContent = "";

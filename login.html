@@ -135,6 +135,14 @@
                         throw new Error(data.message || "帳號或密碼錯誤");
                     }
 
+                    // 成功時讀取回傳 JSON 並儲存至 sessionStorage（與 SPA 行為一致）
+                    const data = await res.json().catch(() => ({}));
+                    try {
+                        if (data.member_id) sessionStorage.setItem("memberId", String(data.member_id));
+                        if (data.display_name) sessionStorage.setItem("displayName", data.display_name);
+                        if (data.token) sessionStorage.setItem("token", data.token);
+                    } catch (e) { /* 若瀏覽器阻擋 storage，仍導向 */ }
+
                     window.location.href = "/member.html";
 
                 } catch (err) {

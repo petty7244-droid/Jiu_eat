@@ -1,18 +1,26 @@
 """
 資料庫連線設定（backend/database.py）
 ======================================
-本模組負責建立與資料庫的連線，並提供：
-- DATABASE_URL ：資料庫連線字串（可透過環境變數覆寫）
-- engine       ：SQLAlchemy 引擎（實際連線的物件）
-- SessionLocal ：產生資料庫 Session 的工廠
-- Base         ：所有 ORM 模型的共同基礎類別
-- get_db()     ：FastAPI 依賴注入用的 Session 供應器
+支援 MSSQL（原始設計）、PostgreSQL / Supabase、SQLite 三種引擎。
+
+引擎由 DB_TYPE 環境變數決定：
+- postgres / supabase → postgresql+psycopg2（需安裝 psycopg2-binary，連 Supabase 強制 SSL）
+- mssql              → mssql+pyodbc（需安裝 pyodbc 與 ODBC Driver）
+- sqlite / 其他       → 直接使用 DATABASE_URL（預設 sqlite:///./jiu_eat.db）
+
+本模組提供：
+- taipei_now()   ：取得當前台北時間（naive datetime）
+- to_naive_taipei()：將 timezone-aware datetime 轉為台北時區 naive datetime
+- engine         ：SQLAlchemy 引擎（實際連線的物件）
+- SessionLocal   ：產生資料庫 Session 的工廠
+- Base           ：所有 ORM 模型的共同基礎類別
+- get_db()       ：FastAPI 依賴注入用的 Session 供應器
 """
 
 import os          # 讀取環境變數
 from datetime import datetime, timedelta, timezone   # 日期時間與時區處理
 
-from sqlalchemy import create_engine     # 建立資料庫引擎
+from sqlalchemy import URL, create_engine     # 建立資料庫引擎（URL.create 可正確處理密碼特殊字元）
 from sqlalchemy.orm import declarative_base, sessionmaker          # ORM 基礎類別與 Session 工廠
 
 # 台北時區（UTC+8）：全系統時間統一以台北時間為準
@@ -37,61 +45,46 @@ def to_naive_taipei(dt):
         return dt.astimezone(tz_taipei).replace(tzinfo=None)
     return dt
 
-# 從環境變數讀取 MSSQL 連線參數（Docker Compose 會注入這些變數）
-MSSQL_SERVER = os.getenv("MSSQL_SERVER", "localhost")          # 主機（Docker 內為 db）
-MSSQL_PORT = os.getenv("MSSQL_PORT", "1433")                    # 連接埠
-MSSQL_DATABASE = os.getenv("MSSQL_DATABASE", "jiu_eat_1.2")     # 資料庫名稱
-MSSQL_USER = os.getenv("MSSQL_USER", "sa")                      # 帳號
-MSSQL_PASSWORD = os.getenv("MSSQL_SA_PASSWORD", "")             # 密碼
-MSSQL_DRIVER = os.getenv("MSSQL_DRIVER", "ODBC Driver 18 for SQL Server")  # ODBC 驅動
 
-# 組出連線字串（可透過 DATABASE_URL 直接覆寫整個連線字串）
-if MSSQL_PASSWORD:
-    DATABASE_URL = os.getenv(
-        "DATABASE_URL",
-        f"mssql+pyodbc://{MSSQL_USER}:{MSSQL_PASSWORD}@{MSSQL_SERVER}:{MSSQL_PORT}/{MSSQL_DATABASE}"
-        f"?driver={MSSQL_DRIVER.replace(' ', '+')}&TrustServerCertificate=yes",
+# 引擎型別：postgres / supabase / mssql / sqlite
+DB_TYPE = os.getenv("DB_TYPE", "sqlite").lower()
+
+if DB_TYPE in ("postgres", "supabase"):
+    # PostgreSQL / Supabase：DB_HOST 範例 db.<project-ref>.supabase.co
+    # Supabase 強制 SSL，預設 sslmode=require
+    DATABASE_URL = URL.create(
+        drivername="postgresql+psycopg2",
+        username=os.getenv("DB_USERNAME", "postgres"),
+        password=os.environ["DB_PASSWORD"],
+        host=os.environ["DB_HOST"],
+        port=int(os.getenv("DB_PORT", "5432")),
+        database=os.getenv("DB_NAME", "postgres"),
+        query={"sslmode": os.getenv("DB_SSLMODE", "require")},
     )
+    connect_args = {}
+elif DB_TYPE == "mssql":
+    # Microsoft SQL Server：與 docker-compose.yml 對應的連線參數
+    DATABASE_URL = URL.create(
+        drivername="mssql+pyodbc",
+        username=os.environ["DB_USERNAME"],
+        password=os.environ["DB_PASSWORD"],
+        host=os.environ["DB_HOST"],
+        port=int(os.getenv("DB_PORT", "1433")),
+        database=os.environ["DB_NAME"],
+        query={
+            "driver": os.getenv("DB_DRIVER", "ODBC Driver 18 for SQL Server"),
+            "TrustServerCertificate": os.getenv("DB_TRUST_SERVER_CERTIFICATE", "yes"),
+        },
+    )
+    connect_args = {}
 else:
-    # 未提供密碼時，退回本機 Windows 整合驗證（trusted_connection）
-    DATABASE_URL = os.getenv(
-        "DATABASE_URL",
-        f"mssql+pyodbc://@{MSSQL_SERVER}:{MSSQL_PORT}/{MSSQL_DATABASE}"
-        f"?driver={MSSQL_DRIVER.replace(' ', '+')}&trusted_connection=yes",
-    )
-
-
-def ensure_database_exists():
-    """
-    若目標資料庫不存在，先連到 master 建立它，再回原本資料庫。
-    create_all 只會建「資料表」，不會建「資料庫」本身，因此在啟動前需自行確認資料庫存在。
-    """
-    if not DATABASE_URL.startswith("mssql"):
-        return
-    engine_master = create_engine(
-        DATABASE_URL.rsplit("/", 1)[0] + "/master"
-        + (DATABASE_URL.split("?", 1)[1] and "?" + DATABASE_URL.split("?", 1)[1] or ""),
-        connect_args=connect_args,
-    )
-    try:
-        with engine_master.connect() as conn:
-            conn = conn.execution_options(isolation_level="AUTOCOMMIT")
-            conn.exec_driver_sql(f"IF DB_ID(N'{MSSQL_DATABASE}') IS NULL CREATE DATABASE [{MSSQL_DATABASE}]")
-    except Exception:
-        # 建庫失敗不阻礙啟動（例如權限不足），後續連線時仍會回報真正的錯誤
-        pass
-    finally:
-        engine_master.dispose()
-
-
-# SQLite 需要 check_same_thread=False（允許跨執行緒存取），其他資料庫不需要
-connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
-
-# 啟動前先確保資料庫存在
-ensure_database_exists()
+    # SQLite：可透過 DATABASE_URL 完全覆寫（例如 sqlite:///./jiu_eat.db）
+    DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./jiu_eat.db")
+    # SQLite 需要 check_same_thread=False（允許跨執行緒存取），其他資料庫不需要
+    connect_args = {"check_same_thread": False}
 
 # 建立資料庫引擎：管理實際的資料庫連線池與方言（dialect）
-engine = create_engine(DATABASE_URL, connect_args=connect_args)
+engine = create_engine(DATABASE_URL, connect_args=connect_args, pool_pre_ping=True)
 
 # 建立 Session 工廠
 # - autocommit=False：交易不會自動提交，需手動 commit
