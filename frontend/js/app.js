@@ -420,7 +420,7 @@ $("#profile-form").addEventListener("submit", async (e) => {
   fd.set("preferred_cuisine", checkedCuisines.join(","));
   const payload = Object.fromEntries(fd);
   delete payload.email;                                     // Email 不可修改
-  try { const data = await api(`/api/members/${memberId()}`, { method: "PUT", body: JSON.stringify(payload) }); sessionStorage.setItem("displayName", data.display_name); updateAuthUi(); showToast("個人資料已更新"); } catch (error) { showToast(error.message) }
+  try { const data = await api(`/api/members/${memberId()}`, { method: "PUT", body: JSON.stringify(payload) }); sessionStorage.setItem("displayName", data.display_name); updateAuthUi(); showToast("個人資料已更新"); loadHome(); } catch (error) { showToast(error.message) }
 });
 
 // 活動表單送出（新增或編輯）
