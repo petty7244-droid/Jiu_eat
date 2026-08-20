@@ -5,3 +5,4 @@ __pycache__/
 .DS_Store
 jiu_eat.db
 *.db
+DB_csv/
