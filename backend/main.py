@@ -49,13 +49,15 @@ app.include_router(recommendations.router)    # 推薦系統
 
 @app.exception_handler(Exception)
 async def debug_exception_handler(request: Request, exc: Exception):
-    """將未處理的例外細節回傳，方便排查（正式環境建議改為記錄 Log 後回傳 500）"""
+    """處理未預期例外：完整錯誤記錄到 Log，對外僅回傳通用 500 訊息（不洩漏內部細節）"""
+    import logging
     import traceback
-    detail = "".join(traceback.format_exception(type(exc), exc, exc.__traceback__))
-    return JSONResponse(
-        status_code=500,
-        content={"error": str(exc), "detail": detail.splitlines()[-1]},
+    logging.getLogger("uvicorn.error").error(
+        "Unhandled exception: %s\n%s",
+        exc,
+        "".join(traceback.format_exception(type(exc), exc, exc.__traceback__)),
     )
+    return JSONResponse(status_code=500, content={"detail": "伺服器內部錯誤"})
 
 # 前端靜態檔案目錄：指向專案根目錄下的 frontend 資料夾
 FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend"
