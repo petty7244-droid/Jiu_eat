@@ -719,25 +719,23 @@ a {
 }
 
 .status {
-    display: inline-block;
-    /* 申請狀態徽章 */
-    padding: 3px 9px;
+    display: inline-flex;
+    /* flex 讓文字水平垂直置中 */
+    align-items: center;
+    justify-content: center;
+    padding: 7px 12px;
+    /* 與 .button.small（取消申請）相同大小 */
     border-radius: 99px;
     background: #f1efec;
     font-size: 12px;
-    font-weight: 800
+    font-weight: 750;
+    line-height: 1
 }
 
 .status.approved {
     color: var(--green);
     /* 已核准：綠色 */
     background: #e9f6ef
-}
-
-.status.pending {
-    padding: 4px 12px;
-    /* 待審核：多留點內距，避免字在圓角框內太擠 */
-    background: #f1efec
 }
 
 .status.rejected,
