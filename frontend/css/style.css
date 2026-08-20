@@ -734,6 +734,12 @@ a {
     background: #e9f6ef
 }
 
+.status.pending {
+    padding: 4px 12px;
+    /* 待審核：多留點內距，避免字在圓角框內太擠 */
+    background: #f1efec
+}
+
 .status.rejected,
 .status.cancelled {
     color: #a44235;
@@ -1342,7 +1348,7 @@ footer p {
     }
 
     .logo {
-        font-size: 18px
+        font-size: 20px
     }
 
     .hero {

@@ -344,7 +344,7 @@ async function reviewApplicants() {
   /** 載入並顯示活動的申請人列表 */
   try {
     const items = await api(`/api/activities/${state.currentActivity.id}/applications`);
-    $("#applicant-list").innerHTML = items.length ? items.map((item) => `<div class="member-item"><div><h3>${escapeHtml(item.member_name)}</h3><p>${escapeHtml(item.message || "沒有留言")}</p></div><div class="member-actions"><span class="status ${item.status}">${item.status}</span>${item.status === "pending" ? `<button class="button button-primary small" data-approve-id="${item.id}">核准</button><button class="button button-outline small" data-reject-id="${item.id}">拒絕</button>` : ""}</div></div>`).join("") : `<p class="empty-state">目前還沒有申請人。</p>`;
+    $("#applicant-list").innerHTML = items.length ? items.map((item) => `<div class="member-item"><div><h3>${escapeHtml(item.member_name)}</h3><p>${escapeHtml(item.message || "沒有留言")}</p></div><div class="member-actions"><span class="status ${item.status}">${({ pending: "待審核", approved: "已核准", rejected: "已拒絕", cancelled: "已取消" })[item.status] || item.status}</span>${item.status === "pending" ? `<button class="button button-primary small" data-approve-id="${item.id}">核准</button><button class="button button-outline small" data-reject-id="${item.id}">拒絕</button>` : ""}</div></div>`).join("") : `<p class="empty-state">目前還沒有申請人。</p>`;
   } catch (error) { showToast(error.message); }
 }
 
