@@ -409,13 +409,42 @@ a {
 }
 
 .event-title {
+    display: flex;
+    /* 活動名稱與愛心並排 */
+    align-items: center;
+    gap: 8px;
     font-size: 16px;
     font-weight: 850;
+    margin-bottom: 8px
+}
+
+.event-title-text {
+    flex: 1;
     white-space: nowrap;
     /* 過長文字省略號處理 */
     overflow: hidden;
-    text-overflow: ellipsis;
-    margin-bottom: 8px
+    text-overflow: ellipsis
+}
+
+.fav-heart {
+    flex-shrink: 0;
+    border: 0;
+    background: transparent;
+    padding: 0 2px;
+    font-size: 17px;
+    line-height: 1;
+    color: var(--orange);
+    cursor: pointer;
+    transition: transform .15s
+}
+
+.fav-heart:hover {
+    transform: scale(1.25)
+}
+
+.fav-heart.active {
+    color: #e0245e
+        /* 已追蹤：紅色愛心 */
 }
 
 .event-info {
@@ -526,6 +555,24 @@ a {
     font-size: 34px;
     line-height: 1.25;
     margin: 8px 0 18px
+}
+
+.detail-title-row {
+    display: flex;
+    /* 標題與愛心並排 */
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px
+}
+
+.detail-title-row h1 {
+    flex: 1;
+    min-width: 0
+}
+
+.fav-heart-lg {
+    font-size: 30px;
+    padding: 6px
 }
 
 .detail-meta {

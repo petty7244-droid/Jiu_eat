@@ -1,16 +1,19 @@
 """
 資料庫模型定義（backend/models.py）
 ===================================
-本模組使用 SQLAlchemy ORM 定義三張資料表：
+本模組使用 SQLAlchemy ORM 定義四張資料表：
 
 1. members（會員資料表）
 2. activities（活動資料表）
 3. applications（活動申請資料表）
+4. favorites（活動追蹤資料表）
 
 並定義彼此的關聯關係：
 - Member 1 ── N Activity        （一個會員可以建立多個活動）
 - Member 1 ── N Application     （一個會員可以申請多個活動）
 - Activity 1 ── N Application   （一個活動可以有多筆申請）
+- Member 1 ── N Favorite        （一個會員可以追蹤多個活動）
+- Activity 1 ── N Favorite      （一個活動可以被多個會員追蹤）
 """
 
 from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
@@ -44,6 +47,8 @@ class Member(Base):
     activities = relationship("Activity", back_populates="organizer")
     # 一對多關聯：會員 → 提出的申請（透過 member_id 串聯）
     applications = relationship("Application", back_populates="member")
+    # 一對多關聯：會員 → 追蹤的活動（透過 member_id 串聯）
+    favorites = relationship("Favorite", back_populates="member")
 
 
 class Activity(Base):
@@ -70,6 +75,8 @@ class Activity(Base):
     applications = relationship("Application", back_populates="activity", cascade="all, delete-orphan")
     # 一對多關聯：活動 → 照片
     photos = relationship("ActivityPhoto", back_populates="activity", cascade="all, delete-orphan")
+    # 一對多關聯：活動 → 追蹤紀錄（cascade 表示刪除活動時連帶刪除相關追蹤）
+    favorites = relationship("Favorite", back_populates="activity", cascade="all, delete-orphan")
 
 
 class Application(Base):
@@ -121,6 +128,23 @@ class ActivityPhoto(Base):
 
     # 多對一關聯：照片 → 活動（取得 activity 即為活動物件）
     activity = relationship("Activity", back_populates="photos")
+
+
+class Favorite(Base):
+    """活動追蹤資料表：記錄會員追蹤的活動（愛心收藏）"""
+    __tablename__ = "favorites"
+    # 唯一限制：同一會員不可重複追蹤同一活動（activity_id + member_id 組合唯一）
+    __table_args__ = (UniqueConstraint("activity_id", "member_id", name="uq_favorite_activity_member"),)
+
+    id = Column(Integer, primary_key=True, index=True)                 # 追蹤編號（主鍵）
+    activity_id = Column(Integer, ForeignKey("activities.id"), nullable=False, index=True)  # 追蹤的活動（外鍵→activities.id）
+    member_id = Column(Integer, ForeignKey("members.id"), nullable=False, index=True)        # 追蹤的會員（外鍵→members.id）
+    created_at = Column(DateTime, default=taipei_now)                  # 追蹤時間（預設為現在）
+
+    # 多對一關聯：追蹤 → 活動（取得 activity 即為活動物件）
+    activity = relationship("Activity", back_populates="favorites")
+    # 多對一關聯：追蹤 → 會員（取得 member 即為會員物件）
+    member = relationship("Member", back_populates="favorites")
 
 
 

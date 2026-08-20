@@ -16,7 +16,7 @@
 // ── 全域設定與狀態 ──────────────────────────────────────
 
 const API_BASE = window.__API_BASE__ || "";                  // API 基礎路徑（可由 window.__API_BASE__ 覆寫，預設為同源）
-const state = { activities: [], visible: 8, currentActivity: null };  // 全域狀態（活動列表、顯示數量、目前檢視的活動）
+const state = { activities: [], visible: 8, currentActivity: null, favoriteIds: new Set() };  // 全域狀態（活動列表、顯示數量、目前檢視的活動、追蹤的活動編號）
 const $ = (selector) => document.querySelector(selector);     // 單一元素選擇器簡寫
 const $$ = (selector) => [...document.querySelectorAll(selector)];    // 多元素選擇器（展開為陣列）
 // 從 sessionStorage 讀取目前登入的會員編號；未登入或發生例外時回傳 null
@@ -117,13 +117,23 @@ async function toggleNotificationPanel() {
 }
 
 
+// ── 活動追蹤 ───────────────────────────────────────────
+
+async function loadFavoriteIds() {
+  /** 載入目前會員追蹤的活動編號集合（供愛心圖示狀態判斷） */
+  if (!memberId()) { state.favoriteIds = new Set(); return; }
+  try { const data = await api("/api/favorites/ids"); state.favoriteIds = new Set(data.ids); } catch { state.favoriteIds = new Set(); }
+}
+
+
 // ── 活動卡片渲染 ────────────────────────────────────────
 
 function cardHtml(item) {
   /** 將活動資料轉換為卡片 HTML */
   const remaining = Math.max(item.max_participants - item.approved_count, 0);
   const image = item.image_url || `https://picsum.photos/seed/jiueat${item.id}/600/400`;  // 無圖片時使用隨機圖片
-  return `<button class="event-card" data-activity-id="${item.id}"><div class="card-img" style="background-image:url('${escapeHtml(image)}')"><span class="card-tag">${categoryIcon(item.category)} ${escapeHtml(item.category)}</span></div><div class="card-content"><div class="event-title">${escapeHtml(item.title)}</div><div class="event-info"><span>📍 ${escapeHtml(item.city)}・${escapeHtml(item.location_name)}</span><span>🗓 ${formatDate(item.activity_date)}</span></div><div class="card-footer"><span>發起人 ${escapeHtml(item.organizer_name)}</span><span class="status-badge">${remaining ? `還有 ${remaining} 個名額` : "已額滿"}</span></div></div></button>`;
+  const isFav = state.favoriteIds.has(item.id);
+  return `<button class="event-card" data-activity-id="${item.id}"><div class="card-img" style="background-image:url('${escapeHtml(image)}')"><span class="card-tag">${categoryIcon(item.category)} ${escapeHtml(item.category)}</span></div><div class="card-content"><div class="event-title"><span class="event-title-text">${escapeHtml(item.title)}</span><span class="fav-heart ${isFav ? "active" : ""}" data-favorite-id="${item.id}" role="button" aria-label="${isFav ? "取消追蹤" : "加入追蹤"}" title="${isFav ? "取消追蹤" : "加入追蹤"}">${isFav ? "♥" : "♡"}</span></div><div class="event-info"><span>📍 ${escapeHtml(item.city)}・${escapeHtml(item.location_name)}</span><span>🗓 ${formatDate(item.activity_date)}</span></div><div class="card-footer"><span>發起人 ${escapeHtml(item.organizer_name)}</span><span class="status-badge">${remaining ? `還有 ${remaining} 個名額` : "已額滿"}</span></div></div></button>`;
 }
 
 function renderCards(container, items) {
@@ -137,6 +147,7 @@ function renderCards(container, items) {
 async function loadHome() {
   /** 載入首頁資料：熱門活動 + 推薦活動 */
   try {
+    await loadFavoriteIds();                                   // 先載入追蹤狀態，讓愛心圖示正確顯示
     const activities = await api("/api/activities?limit=8");
     renderCards("#popular-grid", activities.slice(0, 4));     // 前 4 筆為熱門活動
     $("#home-empty").classList.toggle("hidden", activities.length > 0);
@@ -161,6 +172,7 @@ async function loadHome() {
 
 async function loadActivities() {
   /** 載入活動列表：依據篩選條件查詢 */
+  await loadFavoriteIds();                                     // 先載入追蹤狀態，讓愛心圖示正確顯示
   const params = new URLSearchParams();
   const keyword = $("#filter-keyword").value.trim();
   const category = $("#filter-category").value;
@@ -197,12 +209,14 @@ function requireLogin() {
 async function openDetail(id) {
   /** 開啟活動詳細頁：載入資料並渲染 */
   try {
+    await loadFavoriteIds();                                   // 先載入追蹤狀態，讓愛心圖示正確顯示
     const item = await api(`/api/activities/${id}`);
     state.currentActivity = item;
     const mine = memberId() === item.organizer_id;            // 是否為發起人
     const remaining = Math.max(item.max_participants - item.approved_count, 0);
     const pastDeadline = parseTaipei(item.deadline) <= new Date();
     const appStatus = item.my_application_status;
+    const isFav = state.favoriteIds.has(item.id);
     let applyDisabled, applyText;
     const canCancel = appStatus === "pending";
     if (appStatus === "pending") {
@@ -222,7 +236,7 @@ async function openDetail(id) {
     showPage("activity-detail");
     const applyBtn = `<button class="button button-primary" data-apply-activity ${applyDisabled ? "disabled" : ""}>${applyText}</button>`;
     const cancelBtn = canCancel ? `<button class="button button-outline" data-activity-cancel="${item.my_application_id}">取消報名</button>` : "";
-    $("#activity-detail").innerHTML = `<div class="detail-image" style="background-image:url('${escapeHtml(item.image_url || `https://picsum.photos/seed/jiueat${item.id}/900/500`)}')"></div><div class="detail-body"><span class="section-kicker">${categoryIcon(item.category)} ${escapeHtml(item.category)}</span><h1>${escapeHtml(item.title)}</h1><div class="detail-meta"><span>📍 ${escapeHtml(item.city)}・${escapeHtml(item.location_name)}</span><span>🗓 ${formatDate(item.activity_date)}</span><span>⏳ 報名至 ${formatDate(item.deadline)}</span><span>👥 ${item.approved_count} / ${item.max_participants} 人</span></div><p class="detail-description">${escapeHtml(item.description || "發起人尚未填寫詳細說明。")}</p><p>發起人：<strong>${escapeHtml(item.organizer_name)}</strong></p><div class="detail-actions">${mine ? `<button class="button button-primary" data-edit-activity>編輯活動</button><button class="button button-outline" data-review-applicants>查看申請</button><button class="button button-outline" data-exit-activity>退出返回</button><button class="button button-outline" data-delete-activity>刪除活動</button>` : `${applyBtn}${cancelBtn}`}</div><div id="applicant-list" class="member-list"></div></div>`;
+    $("#activity-detail").innerHTML = `<div class="detail-image" style="background-image:url('${escapeHtml(item.image_url || `https://picsum.photos/seed/jiueat${item.id}/900/500`)}')"></div><div class="detail-body"><span class="section-kicker">${categoryIcon(item.category)} ${escapeHtml(item.category)}</span><div class="detail-title-row"><h1>${escapeHtml(item.title)}</h1><button class="fav-heart fav-heart-lg ${isFav ? "active" : ""}" data-favorite-id="${item.id}" aria-label="${isFav ? "取消追蹤" : "加入追蹤"}" title="${isFav ? "取消追蹤" : "加入追蹤"}">${isFav ? "♥" : "♡"}</button></div><div class="detail-meta"><span>📍 ${escapeHtml(item.city)}・${escapeHtml(item.location_name)}</span><span>🗓 ${formatDate(item.activity_date)}</span><span>⏳ 報名至 ${formatDate(item.deadline)}</span><span>👥 ${item.approved_count} / ${item.max_participants} 人</span></div><p class="detail-description">${escapeHtml(item.description || "發起人尚未填寫詳細說明。")}</p><p>發起人：<strong>${escapeHtml(item.organizer_name)}</strong></p><div class="detail-actions">${mine ? `<button class="button button-primary" data-edit-activity>編輯活動</button><button class="button button-outline" data-review-applicants>查看申請</button><button class="button button-outline" data-exit-activity>退出返回</button><button class="button button-outline" data-delete-activity>刪除活動</button>` : `${applyBtn}${cancelBtn}`}</div><div id="applicant-list" class="member-list"></div></div>`;
     if (location.hash !== `#activity/${id}`) location.hash = `#activity/${id}`;
   } catch (error) { showToast(error.message); }
 }
@@ -277,6 +291,7 @@ function updateAuthUi() {
   if (!loggedIn) {                                             // 登出後清除通知徽章與面板
     $("#notification-badge").classList.add("hidden");
     $("#notification-panel").classList.add("hidden");
+    state.favoriteIds = new Set();                             // 清空追蹤狀態
   }
   $("#main-nav").classList.remove("open");                     // 登入/登出後關閉行動版選單
 }
@@ -285,9 +300,10 @@ function updateAuthUi() {
 // ── 會員中心 ────────────────────────────────────────────
 
 async function loadMember() {
-  /** 載入會員中心資料：個人資料 + 建立的活動 + 申請的活動 */
+  /** 載入會員中心資料：個人資料 + 建立的活動 + 申請的活動 + 追蹤的活動 */
   try {
-    const [member, data] = await Promise.all([api(`/api/members/${memberId()}`), api(`/api/members/${memberId()}/activities`)]);
+    const [member, data, favorites] = await Promise.all([api(`/api/members/${memberId()}`), api(`/api/members/${memberId()}/activities`), api("/api/favorites")]);
+    state.favoriteIds = new Set(favorites.map((item) => item.id));   // 同步愛心狀態
     $("#member-welcome").textContent = `${member.display_name}，在這裡管理你的資料與聚會。`;
     const form = $("#profile-form");
     // 填入文字欄位
@@ -302,6 +318,8 @@ async function loadMember() {
     $("#created-list").innerHTML = data.created.length ? data.created.map((item) => `<div class="member-item"><div><h3>${escapeHtml(item.title)}</h3><p>${formatDate(item.activity_date)}・${escapeHtml(item.city)}</p></div><div class="member-actions"><button class="button button-outline small" data-activity-id="${item.id}">查看</button><button class="button button-primary small" data-edit-id="${item.id}">編輯</button></div></div>`).join("") : `<p class="empty-state">你還沒有建立活動。</p>`;
     // 渲染申請的活動列表
     $("#applied-list").innerHTML = data.applications.length ? data.applications.map((item) => `<div class="member-item"><div><h3>${escapeHtml(item.activity_title)}</h3><p>申請時間 ${formatDate(item.created_at)}</p></div><div class="member-actions"><span class="status ${item.status}">${({ pending: "待審核", approved: "已核准", rejected: "已拒絕", cancelled: "取消報名" })[item.status]}</span>${item.status === "pending" ? `<button class="button button-outline small" data-cancel-id="${item.id}">取消申請</button>` : ""}</div></div>`).join("") : `<p class="empty-state">你目前沒有活動申請。</p>`;
+    // 渲染追蹤的活動列表（活動名稱 / 活動時間 / 取消追蹤）
+    $("#tracked-list").innerHTML = favorites.length ? favorites.map((item) => `<div class="member-item"><div><h3>${escapeHtml(item.title)}</h3><p>${formatDate(item.activity_date)}・${escapeHtml(item.city)}</p></div><div class="member-actions"><button class="button button-outline small" data-untrack-id="${item.id}">取消追蹤</button></div></div>`).join("") : `<p class="empty-state">你還沒有追蹤任何活動。</p>`;
   } catch (error) { showToast(error.message); }
 }
 
@@ -337,6 +355,26 @@ document.addEventListener("click", async (event) => {
   // 點擊通知項目 → 標記已讀並前往該活動詳情
   const notifItem = event.target.closest("[data-notification-id]");
   if (notifItem) { markNotificationRead(Number(notifItem.dataset.notificationId)); location.hash = `#activity/${notifItem.dataset.activityId}`; return; }
+  // 點擊愛心 → 加入／取消活動追蹤（需在活動卡片判斷之前，避免觸發跳頁）
+  const favHeart = event.target.closest("[data-favorite-id]");
+  if (favHeart) {
+    if (!requireLogin()) return;
+    const id = Number(favHeart.dataset.favoriteId);
+    const isFav = state.favoriteIds.has(id);
+    try {
+      if (isFav) { await api(`/api/favorites/${id}`, { method: "DELETE" }); state.favoriteIds.delete(id); showToast("已取消追蹤"); }
+      else { await api(`/api/favorites/${id}`, { method: "POST" }); state.favoriteIds.add(id); showToast("已加入追蹤"); }
+      // 同步更新頁面上所有同一活動的愛心圖示
+      document.querySelectorAll(`[data-favorite-id="${id}"]`).forEach((el) => {
+        const active = state.favoriteIds.has(id);
+        el.classList.toggle("active", active);
+        el.textContent = active ? "♥" : "♡";
+        el.setAttribute("aria-label", active ? "取消追蹤" : "加入追蹤");
+        el.setAttribute("title", active ? "取消追蹤" : "加入追蹤");
+      });
+    } catch (e) { showToast(e.message); }
+    return;
+  }
   // 點擊活動卡片 → 開啟詳細頁
   const activityButton = event.target.closest("[data-activity-id]"); if (activityButton) return openDetail(Number(activityButton.dataset.activityId));
   // 返回首頁
@@ -361,6 +399,8 @@ document.addEventListener("click", async (event) => {
   for (const action of ["approve", "reject"]) { const btn = event.target.closest(`[data-${action}-id]`); if (btn) { try { await api(`/api/applications/${btn.dataset[`${action}Id`]}/${action}`, { method: "PUT" }); await reviewApplicants(); showToast("申請狀態已更新"); } catch (e) { showToast(e.message) } return; } }
   // 取消申請
   const cancel = event.target.closest("[data-cancel-id]"); if (cancel) { try { await api(`/api/applications/${cancel.dataset.cancelId}/cancel`, { method: "PUT" }); await loadMember(); showToast("已取消申請"); } catch (e) { showToast(e.message) } }
+  // 取消追蹤（從會員中心追蹤活動列表）
+  const untrack = event.target.closest("[data-untrack-id]"); if (untrack) { try { await api(`/api/favorites/${untrack.dataset.untrackId}`, { method: "DELETE" }); state.favoriteIds.delete(Number(untrack.dataset.untrackId)); showToast("已取消追蹤"); loadMember(); } catch (e) { showToast(e.message) } }
 });
 
 

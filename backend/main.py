@@ -18,7 +18,7 @@ from fastapi.staticfiles import StaticFiles              # 掛載靜態檔案目
 
 from . import models                          # ORM 模型（用於建立資料表）
 from .database import engine                  # 資料庫引擎
-from .routers import activities, applications, auth, members, notifications, recommendations  # API 路由模組
+from .routers import activities, applications, auth, favorites, members, notifications, recommendations  # API 路由模組
 
 # 自動建立資料表（若不存在）：啟動時掃描所有模型並建立對應的資料表
 models.Base.metadata.create_all(bind=engine)
@@ -44,6 +44,7 @@ app.include_router(members.router)            # 會員資料
 app.include_router(activities.router)         # 活動管理
 app.include_router(applications.router)       # 活動申請
 app.include_router(notifications.router)      # 活動通知
+app.include_router(favorites.router)          # 活動追蹤
 app.include_router(recommendations.router)    # 推薦系統
 
 
