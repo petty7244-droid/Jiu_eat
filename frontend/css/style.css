@@ -692,6 +692,16 @@ a {
     font-size: 17px
 }
 
+.link-title {
+    cursor: pointer;
+    /* 可點選查看活動的名稱 */
+    transition: color .15s
+}
+
+.link-title:hover {
+    color: var(--orange)
+}
+
 .member-item p {
     font-size: 13px;
     color: var(--muted)
