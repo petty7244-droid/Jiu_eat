@@ -70,7 +70,7 @@ function parseTaipei(value) {
 
 function categoryIcon(category) {
   /** 根據活動分類回傳對應的圖示 */
-  return ({ "美食饗宴": "🍱", "桌遊派對": "🎲", "歡唱KTV": "🎤", "戶外運動": "⛰️", "咖啡閒聊": "☕" })[category] || "✨";
+  return ({ "美食饗宴": "🍱", "桌遊派對": "🎲", "歡唱KTV": "🎤", "戶外運動": "⛰️", "咖啡閒聊": "☕", "療癒旅遊": "✈️" })[category] || "✨";
 }
 
 

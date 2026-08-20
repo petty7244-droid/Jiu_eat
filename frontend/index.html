@@ -11,7 +11,7 @@
   <link rel="icon"
     href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🍱%3C/text%3E%3C/svg%3E">
   <link rel="stylesheet" href="./css/style.css?v=7"> <!-- 載入全域樣式表（v=7：避免瀏覽器快取舊樣式） -->
-  <script src="./js/app.js?v=6" defer></script> <!-- 載入主程式（defer：等 HTML 解析完再執行） -->
+  <script src="./js/app.js?v=7" defer></script> <!-- 載入主程式（defer：等 HTML 解析完再執行） -->
 </head>
 
 <body>
@@ -69,6 +69,7 @@
             <button class="category-chip" data-category="歡唱KTV">🎤 歡唱KTV</button>
             <button class="category-chip" data-category="戶外運動">⛰️ 戶外運動</button>
             <button class="category-chip" data-category="咖啡閒聊">☕ 咖啡閒聊</button>
+            <button class="category-chip" data-category="療癒旅遊">✈️ 療癒旅遊</button>
           </div>
         </div>
       </div>
@@ -112,6 +113,7 @@
           <option>歡唱KTV</option>
           <option>戶外運動</option>
           <option>咖啡閒聊</option>
+          <option>療癒旅遊</option>
         </select>
         <input id="filter-city" type="text" placeholder="地區，例如：台北">
         <button class="button button-primary" type="submit">篩選搜尋</button>
@@ -143,6 +145,7 @@
               <option>歡唱KTV</option>
               <option>戶外運動</option>
               <option>咖啡閒聊</option>
+              <option>療癒旅遊</option>
             </select></label><label>活動縣市<input name="city" required placeholder="台北市"></label></div> <!-- 分類與城市（皆必填） -->
         <label>詳細地點<input name="location_name" required placeholder="店名或集合地點"></label> <!-- 活動詳細地點（必填） -->
         <div class="form-row"><label>活動日期時間<input name="activity_date" type="datetime-local"
