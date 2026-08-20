@@ -22,7 +22,7 @@ Supabase（雲端 PostgreSQL）          ← 唯一資料來源
 | **Render** | 執行 FastAPI 後端、掛載前端 SPA | 雲端 |
 | **Supabase** | 存放所有資料（PostgreSQL） | 雲端 |
 | **DBeaver** | 資料庫管理工具（檢視／操作資料） | 本機 |
-| **`DB_csv/`** | 原始匯入資料（一次性匯入 Supabase） | 本機 repo |
+| **`DB_csv/`** | 原始匯入資料（一次性匯入 Supabase） | 僅本機（已列入 `.gitignore`，不上傳 Git） |
 
 技術棧：`FastAPI → SQLAlchemy → PostgreSQL（Supabase）`。
 SQLAlchemy 已抽象化資料庫差異，切換引擎不需要改 API 路由與 models。
@@ -100,9 +100,10 @@ members（無外鍵）
 | 方式 | Host | Port | 用途 |
 | --- | --- | --- | --- |
 | **Direct connection** | `db.<project-ref>.supabase.co` | 5432 | Render／DBeaver 單一連線使用 |
-| **Pooler（Transaction mode）** | `aws-0-ap-southeast-1.pooler.supabase.com` | 6543 | 併發多、或 IPv6 連線問題時的備援 |
+| **Pooler（Transaction mode）** | `aws-0-ap-southeast-<2>.pooler.supabase.com` | 5432 或 6543 | 併發多、或 IPv6 連線問題時的備援 |
 
 > - 使用者名稱：direct connection 為 `postgres`；pooler 為 `postgres.<project-ref>`。
+> - 本專案實際採用 **Pooler**：host `aws-0-ap-southeast-2.pooler.supabase.com:5432`、user `postgres.<project-ref>`（project ref = `dijkgnferiflqgmmsopl`）。
 > - 若密碼含 `@ : / # %` 等 URL 特殊字元，本專案的 `database.py` 使用 `URL.create()`，
 >   可自動正確處理，不需手動 encoding。
 > - 忘了密碼：**Settings → Database → Reset database password**。
@@ -134,10 +135,10 @@ Render service → **Environment**，加入（值取自第 4.1 節）：
 
 ```
 DB_TYPE=postgres
-DB_HOST=db.<你的專案ref>.supabase.co
+DB_HOST=aws-0-ap-southeast-2.pooler.supabase.com
 DB_PORT=5432
 DB_NAME=postgres
-DB_USERNAME=postgres
+DB_USERNAME=postgres.<你的專案ref>
 DB_PASSWORD=<你的資料庫密碼>
 ```
 
@@ -155,6 +156,7 @@ DB_PASSWORD=<你的資料庫密碼>
 > 前端不用額外設定：FastAPI 在 `/` 掛載 `frontend/index.html`（SPA），
 > `app.js` 使用 `window.__API_BASE__ || ""` 走**同源**，會自動呼叫 Render 自己的 API。
 > 根目錄的 `api-base.js` 是 GitHub Pages 用的舊檔，Render 上不會被載入。
+> 前端更新後記得把 `frontend/index.html` 內 CSS/JS 的 `?v=` 版本號 +1，避免瀏覽器沿用舊快取。
 
 ---
 
@@ -168,10 +170,10 @@ FastAPI 啟動時會執行 `models.Base.metadata.create_all(bind=engine)`（`bac
 
 ```bash
 export DB_TYPE='postgres'
-export DB_HOST='db.<你的專案ref>.supabase.co'
+export DB_HOST='aws-0-ap-southeast-2.pooler.supabase.com'
 export DB_PORT='5432'
 export DB_NAME='postgres'
-export DB_USERNAME='postgres'
+export DB_USERNAME='postgres.<你的專案ref>'
 export DB_PASSWORD='你的密碼'
 
 uv run python -c "from backend import models; from backend.database import engine; models.Base.metadata.create_all(bind=engine); print('Tables created')"
@@ -194,10 +196,10 @@ DBeaver 用來看／管理 Supabase 資料（不需額外寫程式）。
 
 | 欄位 | 值 |
 | --- | --- |
-| **Host** | `db.<你的專案ref>.supabase.co` |
+| **Host** | `aws-0-ap-southeast-2.pooler.supabase.com` |
 | **Port** | `5432` |
 | **Database** | `postgres` |
-| **Username** | `postgres` |
+| **Username** | `postgres.<你的專案ref>` |
 | **Password** | 資料庫密碼 |
 | **SSL** | 勾選 `Require SSL`（主連線設定頁或 Driver 屬性） |
 
@@ -206,7 +208,7 @@ DBeaver 用來看／管理 Supabase 資料（不需額外寫程式）。
 ### 7.2 常見連線問題
 
 - **IPv6 timeout**：部分台灣 ISP 對 Supabase direct connection 有 IPv6 問題。解法：
-  - 改用 Pooler：Host `aws-0-ap-southeast-1.pooler.supabase.com`、Port `6543`、Username `postgres.<ref>`；或
+  - 改用 Pooler：Host `aws-0-ap-southeast-2.pooler.supabase.com`、Port `6543`、Username `postgres.<ref>`；或
   - Supabase → **Networking** 啟用 IPv4 add-on。
 - 密碼錯誤：到 Supabase **Settings → Database → Reset database password** 重設後更新。
 
@@ -221,15 +223,23 @@ DBeaver 用來看／管理 Supabase 資料（不需額外寫程式）。
 ### 8.1 前置
 
 - 已安裝 `psycopg2-binary`（專案相依已含）。
-- 已設定第 5.2 節的本機環境變數（`DB_TYPE`、`DB_HOST`、`DB_PASSWORD` …）。
+- 已設定連線環境變數。本機建議寫在 repo 根目錄的 **`.env`**（已 gitignore，勿 commit），
+  由後端 `database.py` 讀取。內容範例：
+
+  ```
+  DB_TYPE=postgres
+  DB_HOST=aws-0-ap-southeast-2.pooler.supabase.com
+  DB_PORT=5432
+  DB_NAME=postgres
+  DB_USERNAME=postgres.<你的專案ref>
+  DB_PASSWORD=<你的資料庫密碼>
+  ```
 
 ### 8.2 執行匯入
 
 ```bash
-# 本機
-export DB_TYPE='postgres'
-export DB_HOST='db.<你的專案ref>.supabase.co'
-export DB_PASSWORD='你的密碼'
+# 本機（先載入 .env）
+set -a; source .env; set +a
 
 # 第一次匯入
 uv run python scripts/import_csv.py
@@ -301,15 +311,10 @@ curl -X POST https://<render-service>.onrender.com/api/login \
 
 ## 10. 本機開發（非 Render）連線 Supabase
 
-不想動 Render 時，本機跑 FastAPI 同樣連 Supabase：
+不想動 Render 時，本機跑 FastAPI 同樣連 Supabase（先用 `.env` 設好連線）：
 
 ```bash
-export DB_TYPE='postgres'
-export DB_HOST='db.<你的專案ref>.supabase.co'
-export DB_PORT='5432'
-export DB_NAME='postgres'
-export DB_USERNAME='postgres'
-export DB_PASSWORD='你的密碼'
+set -a; source .env; set +a
 
 uv run uvicorn backend.main:app --reload
 ```
@@ -317,6 +322,7 @@ uv run uvicorn backend.main:app --reload
 連線測試（不啟動伺服器）：
 
 ```bash
+set -a; source .env; set +a
 uv run python -c "from backend.database import engine; c = engine.connect(); print('PostgreSQL connection OK'); c.close()"
 ```
 
@@ -326,7 +332,7 @@ uv run python -c "from backend.database import engine; c = engine.connect(); pri
 
 | 方案 | 說明 |
 | --- | --- |
-| **MSSQL via Docker** | 原始設計。`DB_TYPE=mssql`，搭配本機 `docker compose up -d db`。 |
+| **MSSQL** | 原始設計。`DB_TYPE=mssql`。原搭配的 `docker-compose.yml` 已於 2026-08 移除，若要重試需自行準備 SQL Server，並安裝 ODBC Driver（`database.py` 備援分支已保留）。 |
 | **SQLite** | 本機快速原型。不設 `DB_TYPE` 即為預設 `sqlite:///./jiu_eat.db`，資料不入雲。 |
 
 ---
@@ -367,7 +373,7 @@ duplicate key value violates unique constraint "members_pkey"
 
 ### DBeaver 連不上（timeout）
 
-- 多為 IPv6 問題：改用 Pooler（`aws-0-ap-southeast-1.pooler.supabase.com:6543`，user 加 `.ref`）或啟用 Supabase IPv4 add-on。
+- 多為 IPv6 問題：改用 Pooler（`aws-0-ap-southeast-2.pooler.supabase.com:6543`，user 加 `.ref`）或啟用 Supabase IPv4 add-on。
 
 ### Supabase 免費專案被暫停
 
@@ -378,6 +384,7 @@ duplicate key value violates unique constraint "members_pkey"
 ## 14. 檢查清單
 
 - [ ] Supabase 專案已建立，密碼已保存、未寫入 Git
+- [ ] 本機 `.env` 已設定 `DB_TYPE=postgres` 與 `DB_*` 連線變數（未 commit）
 - [ ] Render Web Service 建立完成：
   - Root Directory 留空、Build `pip install -r requirements.txt`
   - Start `uvicorn backend.main:app --host 0.0.0.0 --port $PORT`
@@ -389,6 +396,8 @@ duplicate key value violates unique constraint "members_pkey"
 - [ ] 筆數核對：32 / 20 / 34 / 21（DBeaver COUNT）
 - [ ] 外鍵與中文資料抽驗正常
 - [ ] 登入／註冊 CRUD 測試通過
+- [ ] `DB_csv/` 已列入 `.gitignore`（未上傳 Git）
+- [ ] 前端改版後已將 `?v=` 版本號 +1
 - [ ] （選）`members_fake` 是否匯入已決定
 
 ---
