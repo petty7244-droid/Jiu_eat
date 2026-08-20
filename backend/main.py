@@ -11,9 +11,9 @@ FastAPI 應用程式主入口（backend/main.py）
 
 from pathlib import Path    # 處理檔案路徑（定位前端靜態目錄）
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware      # CORS 中介層
-from fastapi.responses import FileResponse               # 回傳檔案（首頁 HTML）
+from fastapi.responses import FileResponse, JSONResponse               # 回傳檔案（首頁 HTML）
 from fastapi.staticfiles import StaticFiles              # 掛載靜態檔案目錄
 
 from . import models                          # ORM 模型（用於建立資料表）
@@ -45,6 +45,17 @@ app.include_router(activities.router)         # 活動管理
 app.include_router(applications.router)       # 活動申請
 app.include_router(notifications.router)      # 活動通知
 app.include_router(recommendations.router)    # 推薦系統
+
+
+@app.exception_handler(Exception)
+async def debug_exception_handler(request: Request, exc: Exception):
+    """將未處理的例外細節回傳，方便排查（正式環境建議改為記錄 Log 後回傳 500）"""
+    import traceback
+    detail = "".join(traceback.format_exception(type(exc), exc, exc.__traceback__))
+    return JSONResponse(
+        status_code=500,
+        content={"error": str(exc), "detail": detail.splitlines()[-1]},
+    )
 
 # 前端靜態檔案目錄：指向專案根目錄下的 frontend 資料夾
 FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend"

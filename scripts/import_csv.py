@@ -41,6 +41,9 @@ TABLES = [
 
 TIME_FORMATS = ("%Y-%m-%d %H:%M:%S.%f", "%Y-%m-%d %H:%M:%S")
 
+# 這些欄位是日期時間，空值應保留為 NULL；其餘字串欄位空值轉為空字串 ""（對應 model 的 default=""）
+TIME_COLUMNS = {"created_at", "activity_date", "deadline"}
+
 
 def parse_time(value):
     """解析 CSV 時間欄位（可能含或不含微秒）"""
@@ -55,14 +58,17 @@ def parse_time(value):
 
 
 def clean(row):
-    """把空字串轉成 None，時間欄位轉成 datetime"""
+    """清理 CSV 資料列：
+    - 空值：時間欄位 → None；其餘字串欄位 → ""（對應 model 的 default=""）
+    - 時間欄位轉成 datetime
+    """
     out = {}
     for k, v in row.items():
         v = v.strip()
-        if v == "":
-            out[k] = None
-        elif k.endswith("_at") or k in ("activity_date", "deadline"):
+        if k in TIME_COLUMNS:
             out[k] = parse_time(v)
+        elif v == "":
+            out[k] = "" if k != "id" else None
         else:
             out[k] = v
     return out
