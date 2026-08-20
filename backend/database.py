@@ -63,7 +63,7 @@ if DB_TYPE in ("postgres", "supabase"):
     )
     connect_args = {}
 elif DB_TYPE == "mssql":
-    # Microsoft SQL Server：與 docker-compose.yml 對應的連線參數
+    # Microsoft SQL Server：備援方案（需另裝 ODBC Driver）
     DATABASE_URL = URL.create(
         drivername="mssql+pyodbc",
         username=os.environ["DB_USERNAME"],

@@ -278,6 +278,7 @@ function updateAuthUi() {
     $("#notification-badge").classList.add("hidden");
     $("#notification-panel").classList.add("hidden");
   }
+  $("#main-nav").classList.remove("open");                     // 登入/登出後關閉行動版選單
 }
 
 

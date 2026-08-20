@@ -1,62 +1,117 @@
 # JiuEat
 
-這是一個提供測試與示範用的 Python 專案。
-本專案使用 **MSSQL（SQL Server）** 作為資料庫，後端與資料庫皆以 **Docker Compose** 啟動。
+線上測試網址：**https://jiu-eat.onrender.com/**
 
-## 啟動（Docker Compose，推薦）
+> 這是提供測試與示範用的 Python 專案。目前部署架構：
+> **FastAPI（Render）→ PostgreSQL（Supabase）**，資料庫可用 DBeaver 本機連線管理。
 
-需要 Docker Desktop（或 Docker Engine + Compose 外掛）。
+## 架構
 
-```bash
-docker compose up -d --build
+```text
+使用者瀏覽器
+    │
+    ▼
+Render（FastAPI 後端 + 前端 SPA）    https://jiu-eat.onrender.com/
+    │  連線（DB_* 環境變數）
+    ▼
+Supabase（雲端 PostgreSQL）          唯一資料來源
+    ▲
+    │  本機管理
+DBeaver
 ```
 
-啟動後可瀏覽：
+- **Render**：執行 FastAPI 後端、掛載前端 SPA（`frontend/`）
+- **Supabase**：存放所有資料（members / activities / applications / notifications / activity_photos）
+- **DBeaver**：本機資料庫管理工具（檢視／操作資料）
 
-- **網頁：<http://127.0.0.1:8000/>**
-- API 文件：<http://127.0.0.1:8000/docs>
-- 健康檢查：<http://127.0.0.1:8000/api/health>
+## 快速開始（本機開發）
 
-停止服務：`docker compose down`（資料保留在 volume，`-v` 才會刪除）
-查看日誌：`docker compose logs -f backend`
-
-### 可調整的環境變數
-
-| 變數 | 預設值 | 說明 |
-| --- | --- | --- |
-| `MSSQL_SA_PASSWORD` | `Aa123456` | SQL Server `sa` 密碼（啟動前設定，日後修改會造成連線失敗） |
-
-若要在其他機器上設定不同密碼：
-
-```bash
-MSSQL_SA_PASSWORD=YourPassword docker compose up -d --build
-```
-
-## 本機啟動（備案）
-
-若想在本機（非 Docker）執行，需自行安裝 SQL Server 與 ODBC Driver，
-並透過環境變數提供連線參數：
+### 1. 安裝相依套件
 
 ```bash
 uv sync
-export MSSQL_SERVER=localhost MSSQL_PORT=1433 MSSQL_DATABASE=jiu_eat_1.2 \
-       MSSQL_USER=sa MSSQL_SA_PASSWORD=your_password
-uv run uvicorn backend.main:app --reload
 ```
 
-連線字串也可以直接用 `DATABASE_URL` 完全覆寫（例如改用 SQLite：`sqlite:///./jiu_eat.db`）。
-
-> 若部署環境沒有 uv，可先建立虛擬環境，再用 `requirements.txt` 安裝依賴（內容與 pyproject.toml 一致）：
+> 若沒有 uv，可建立虛擬環境後用 `requirements.txt` 安裝：
 > ```bash
 > uv venv
 > uv pip install -r requirements.txt
 > ```
 
-- `routers/`：網址、輸入輸出、HTTP 錯誤
-- `services/`：目前只放推薦邏輯；未來可換成 ML
-- `models.py`：SQLAlchemy 資料表
-- `schemas.py`：Pydantic API 格式
-- `frontend/`：HTML、CSS、JavaScript
+### 2. 設定資料庫連線（.env）
 
+建立 `.env`（已被 `.gitignore` 忽略，不會提交）：
 
+```
+DB_TYPE=postgres
+DB_HOST=aws-0-ap-southeast-2.pooler.supabase.com
+DB_PORT=5432
+DB_NAME=postgres
+DB_USERNAME=postgres.<你的專案ref>
+DB_PASSWORD=<你的Supabase資料庫密碼>
+```
 
+> 連線資訊可在 Supabase Dashboard → **Project Settings → Database → Connection string** 取得。
+
+### 3. 啟動本機伺服器
+
+```bash
+uv run uvicorn backend.main:app --reload
+```
+
+可瀏覽：
+- 網頁：<http://127.0.0.1:8000/>
+- API 文件：<http://127.0.0.1:8000/docs>
+- 健康檢查：<http://127.0.0.1:8000/api/health>
+
+## 部署（Render + Supabase）
+
+### Supabase 建立資料庫
+
+1. 至 <https://supabase.com> 建立專案，記錄 Database Password。
+2. 取得連線資訊（Settings → Database → Connection string）。
+
+### Render 部署 FastAPI
+
+| 欄位 | 值 |
+| --- | --- |
+| **Root Directory** | 留空（Repo 根目錄） |
+| **Build Command** | `pip install -r requirements.txt` |
+| **Start Command** | `uvicorn backend.main:app --host 0.0.0.0 --port $PORT` |
+
+環境變數（Environment）：
+
+```
+DB_TYPE=postgres
+DB_HOST=aws-0-ap-southeast-2.pooler.supabase.com
+DB_PORT=5432
+DB_NAME=postgres
+DB_USERNAME=postgres.<你的專案ref>
+DB_PASSWORD=<你的Supabase資料庫密碼>
+```
+
+> ⚠️ 務必設定 `DB_TYPE=postgres`，否則會退回 SQLite，重新部署時資料會消失。
+
+### 建立資料表與匯入資料
+
+資料表會在 FastAPI 啟動時由 `create_all` 自動建立。匯入 CSV 資料：
+
+```bash
+# 本機連到 Supabase（需先設定 .env）
+uv run python scripts/import_csv.py            # 匯入（略過已存在主鍵）
+uv run python scripts/import_csv.py --reset    # 先清空再匯入
+```
+
+腳本依外鍵順序匯入：`members → activities → applications → notifications → activity_photos`，並自動修正 Postgres 序列。
+
+## 專案結構
+
+- `backend/routers/`：網址、輸入輸出、HTTP 錯誤
+- `backend/services/`：目前只放推薦邏輯；未來可換成 ML
+- `backend/models.py`：SQLAlchemy 資料表
+- `backend/schemas.py`：Pydantic API 格式
+- `frontend/`：前端 SPA（HTML、CSS、JavaScript）
+- `scripts/import_csv.py`：CSV 匯入資料庫的腳本
+- `DB_csv/`：原始匯入資料
+- `ml/`：推薦系統訓練腳本
+- `docs/database-setup-guide.md`：資料庫建置完整指南（含 DBeaver）

@@ -1,37 +1,45 @@
-# Jiu-Eat：本地資料庫建置完整指南（含 Supabase）
+# Jiu-Eat：專案掛載資料庫完整程序（Render + Supabase + DBeaver）
 
-## 1. 文件目的
+## 1. 目標架構
 
-本文件說明如何把 `DB_csv/` 下的 CSV 資料建立成「本地資料庫」，並提供兩種主流做法：
-
-- **方案 A：Supabase（雲端 PostgreSQL，建議）**
-  - 免安裝、免費、7x24 運作，不受本機 Docker 開機限制
-  - 適合展示、測試、開發共用
-- **方案 B：MSSQL via Docker Compose（專案原始設計）**
-  - 與 `docker-compose.yml` 一致，資料在本機 volume
-
-目前專案技術棧：
+本專案目前的部署架構：
 
 ```text
-FastAPI → SQLAlchemy → 資料庫（MSSQL / SQLite / PostgreSQL 皆可）
+使用者瀏覽器
+    │
+    ▼
+Render（雲端 FastAPI 服務）          ← 後端 API 與前端 SPA
+    │  透過 DB_TYPE 環境變數連線
+    ▼
+Supabase（雲端 PostgreSQL）          ← 唯一資料來源
+    ▲
+    │  本機管理 / 驗證
+本機 DBeaver                          ← 檢視、編輯、匯入檢查
 ```
 
-SQLAlchemy 已將資料庫差異抽象化，因此切換引擎**不需要改 API 路由、models 與前端**，
-只需調整連線設定與安裝對應驅動。
+| 層 | 角色 | 位置 |
+| --- | --- | --- |
+| **Render** | 執行 FastAPI 後端、掛載前端 SPA | 雲端 |
+| **Supabase** | 存放所有資料（PostgreSQL） | 雲端 |
+| **DBeaver** | 資料庫管理工具（檢視／操作資料） | 本機 |
+| **`DB_csv/`** | 原始匯入資料（一次性匯入 Supabase） | 本機 repo |
+
+技術棧：`FastAPI → SQLAlchemy → PostgreSQL（Supabase）`。
+SQLAlchemy 已抽象化資料庫差異，切換引擎不需要改 API 路由與 models。
 
 ---
 
 ## 2. 現況盤點：CSV 與資料表對應
 
-### 2.1 主程式 4 張資料表（`backend/models.py`）
+### 2.1 資料表（`backend/models.py` 已定義）
 
-| CSV 檔案 | 資料表 | 資料筆數（不含表頭） | 與 Model 對應 |
+| CSV 檔案 | 資料表 | 資料筆數（不含表頭） | Model |
 | --- | --- | --- | --- |
-| `members.csv` | `members` | 32 | ✅ `Member` |
-| `activities.csv` | `activities` | 20 | ✅ `Activity` |
-| `applications.csv` | `applications` | 34 | ✅ `Application` |
-| `notifications.csv` | `notifications` | 21 | ✅ `Notification` |
-| `activity_photos.csv` | `activity_photos` | 0（只有表頭） | ❌ **尚未定義 Model** |
+| `members.csv` | `members` | 32 | `Member` |
+| `activities.csv` | `activities` | 20 | `Activity` |
+| `applications.csv` | `applications` | 34 | `Application` |
+| `notifications.csv` | `notifications` | 21 | `Notification` |
+| `activity_photos.csv` | `activity_photos` | 0（只有表頭） | `ActivityPhoto`（已於 2026-08 補上） |
 
 ### 2.2 外鍵依賴（匯入順序依據）
 
@@ -40,7 +48,7 @@ members（無外鍵）
   └─ activities（organizer_id → members.id）
        └─ applications（activity_id → activities.id, member_id → members.id）
        └─ notifications（activity_id → activities.id, member_id → members.id）
-       └─ activity_photos（activity_id → activities.id）   ※ 需先補 Model
+       └─ activity_photos（activity_id → activities.id）
 ```
 
 **匯入順序必須為：`members → activities → applications → notifications → activity_photos`。**
@@ -49,95 +57,345 @@ members（無外鍵）
 
 | 檔案 | 說明 |
 | --- | --- |
-| `members_fake.csv` | 2000 筆「假會員」資料，供 `ml/train.py`（FP-Growth）訓練推薦規則用。**主程式不需要這張表**，推薦規則已內建於 `backend/services/recommendation_service.py` 的 `FP_RULES`。若想重新訓練推薦，才需要匯入。 |
+| `members_fake.csv` | 2000 筆「假會員」資料，供 `ml/train.py`（FP-Growth）訓練推薦規則用。主程式不需要這張表；推薦規則已內建於 `backend/services/recommendation_service.py` 的 `FP_RULES`。 |
 
 ---
 
-## 3. 整體流程總覽
+## 3. 完整程序總覽
 
 ```text
-[1] 決定資料庫引擎（Supabase / MSSQL / SQLite）
+[1] 建立 Supabase 專案（雲端資料庫）並取得連線資訊
         ↓
-[2] 建立資料庫與取得連線資訊（Supabase 專案建置）
+[2] Render 建立 Web Service 並設定 Build / Start Command
         ↓
-[3] 安裝 Python 資料庫驅動（psycopg2 或 pyodbc）
+[3] 在 Render 填入資料庫環境變數（DB_TYPE=postgres …）
         ↓
-[4] 設定連線（DATABASE_URL 或 DB_* 環境變數）
+[4] 部署 / 重啟 → FastAPI 啟動時自動 create_all 建立資料表
         ↓
-[5] 建立資料表（FastAPI create_all 自動建立 或 手動 SQL）
+[5] 本機 DBeaver 連上 Supabase，確認 5 張表已建立
         ↓
-[6] 匯入 CSV（scripts/import_csv.py，依外鍵順序）
+[6] 本機執行 scripts/import_csv.py 匯入 CSV（連到 Supabase）
         ↓
-[7] 修正 Postgres 序號（setval），避免之後新增資料主鍵衝突
-        ↓
-[8] 啟動 FastAPI 並驗證
+[7] DBeaver / Render Logs 驗證資料筆數與 API 行為
 ```
 
 ---
 
-## 4. 資料庫引擎選擇
-
-| 項目 | Supabase（PostgreSQL） | MSSQL via Docker | SQLite |
-| --- | --- | --- | --- |
-| 安裝成本 | 無（雲端） | 需 Docker Desktop | 無 |
-| 常駐時間 | 雲端 7x24 | 需本機容器開啟 | 本機檔案 |
-| 免費額度 | 免費方案（500MB DB） | Docker 免費 | 免費 |
-| 與專案相容性 | 需改連線 + 加 psycopg2 | 原廠設定 | 已支援（README 明載） |
-| 適合場景 | **展示 / 測試 / 多人共用** | 本機開發（沿用原始設計） | 快速原型 |
-| 閒置暫停 | 免費專案閒置約 7 天會暫停（可恢復） | 無 | 無 |
-
-> **建議：若沒有特別理由，採用方案 A（Supabase）。** 本文件後續以方案 A 為主線，
-> 方案 B 僅列出差異步驟（見第 11 節）。
-
----
-
-## 5. 方案 A：Supabase 完整建置資料庫
-
-### 5.1 建立專案
+## 4. 步驟 1：建立 Supabase 專案
 
 1. 前往 <https://supabase.com> 註冊／登入（可用 GitHub 帳號）。
 2. 點 **New project**。
-3. 依序填寫：
-   - **Organization**：選取或新建一個組織（例如 `jiu-eat`）。
+3. 填寫：
+   - **Organization**：選取或新建一個（例如 `jiu-eat`）。
    - **Project name**：輸入 `jiu-eat`。
-   - **Database Password**：設定資料庫密碼，**務必記下並妥善保存**（之後連線需要）。
-   - **Region**：選擇 **Southeast Asia (Singapore)** 或離你最近的機房（降低延遲）。
+   - **Database Password**：設定資料庫密碼，**務必記下並妥善保存**。
+   - **Region**：選擇 **Southeast Asia (Singapore)**（離台灣最近、延遲最低）。
    - **Pricing Plan**：選 **Free**。
-4. 點 **Create new project**，等待約 1~2 分鐘完成佈建。
+4. 點 **Create new project**，等待約 1~2 分鐘佈建完成。
 
-### 5.2 取得連線資訊
+### 4.1 取得連線資訊
 
-進入 **Project Settings → Database → Connection string**，會看到兩種連線方式：
+**Project Settings → Database → Connection string**：
 
 | 方式 | Host | Port | 用途 |
 | --- | --- | --- | --- |
-| **Direct connection** | `db.<project-ref>.supabase.co` | 5432 | 單一應用程式使用，較簡單 |
-| **Pooler（Transaction mode）** | `aws-0-ap-southeast-1.pooler.supabase.com` | 6543 | 多連線併發、Serverless 建議 |
+| **Direct connection** | `db.<project-ref>.supabase.co` | 5432 | Render／DBeaver 單一連線使用 |
+| **Pooler（Transaction mode）** | `aws-0-ap-southeast-1.pooler.supabase.com` | 6543 | 併發多、或 IPv6 連線問題時的備援 |
 
-SQLAlchemy 連線建議用 **Direct connection**（開發環境單純）：
+> - 使用者名稱：direct connection 為 `postgres`；pooler 為 `postgres.<project-ref>`。
+> - 若密碼含 `@ : / # %` 等 URL 特殊字元，本專案的 `database.py` 使用 `URL.create()`，
+>   可自動正確處理，不需手動 encoding。
+> - 忘了密碼：**Settings → Database → Reset database password**。
 
-```text
-postgresql://postgres.<project-ref>:YOUR_PASSWORD@db.<project-ref>.supabase.co:5432/postgres
+---
+
+## 5. 步驟 2：Render 部署 FastAPI
+
+### 5.1 建立 Web Service
+
+1. Render Dashboard → **New → Web Service** → 連接你的 GitHub 專案。
+2. 依下表設定：
+
+| 欄位 | 值 |
+| --- | --- |
+| **Root Directory** | **留空**（Repo 根目錄，不要填 `backend/main.py`——它是目錄不是檔案） |
+| **Runtime** | Python 3 |
+| **Build Command** | `pip install -r requirements.txt` |
+| **Start Command** | `uvicorn backend.main:app --host 0.0.0.0 --port $PORT` |
+| **Instance Type** | Free（先開發測試用） |
+| **Health Check Path** | `/api/health`（可選） |
+
+> 不要把 Root Directory 設為 `backend`——`requirements.txt` 位於 repo 根目錄，
+> 設成 `backend` 會導致 Build Command 找不到該檔。
+
+### 5.2 設定環境變數（關鍵）
+
+Render service → **Environment**，加入（值取自第 4.1 節）：
+
+```
+DB_TYPE=postgres
+DB_HOST=db.<你的專案ref>.supabase.co
+DB_PORT=5432
+DB_NAME=postgres
+DB_USERNAME=postgres
+DB_PASSWORD=<你的資料庫密碼>
 ```
 
-> - 使用者名稱固定是 `postgres.<project-ref>`（或 `postgres`，依 Dashboard 顯示）。
-> - 若密碼含 `@ : / # %` 等 URL 特殊字元，**務必做 URL encoding**。
->   建議直接用第 6.2 節的 `URL.create()` 寫法，可完全避開此問題。
-> - 若忘了密碼：**Project Settings → Database → Reset database password** 重設。
+> ⚠️ **若不設 `DB_TYPE=postgres`，程式會退回 SQLite（`sqlite:///./jiu_eat.db`）**。
+> 那會寫在 Render 的臨時磁碟，每次重新部署資料就全部消失。務必設定。
 
-### 5.3 建立資料表（二選一）
+### 5.3 部署與重啟
 
-#### 方式 1（推薦）：由 FastAPI `create_all` 自動建立
+儲存環境變數後：
 
-FastAPI 啟動時會執行 `models.Base.metadata.create_all(bind=engine)`，
-只要連線設定正確，第一次啟動就會自動建立 4 張表。見第 8 節。
+1. **Manual Deploy → Deploy latest commit**（或直接 Restart）。
+2. 查看 **Logs**，確認啟動無錯誤、`create_all` 已建立資料表。
+3. 開啟 service 的公開網址，確認 `/{health}`（`/api/health`）回傳 `{"status":"ok"}`。
 
-> 注意：`activity_photos` 因尚未定義 Model，不會被自動建立。如需此表，先完成第 7.1 節。
+> 前端不用額外設定：FastAPI 在 `/` 掛載 `frontend/index.html`（SPA），
+> `app.js` 使用 `window.__API_BASE__ || ""` 走**同源**，會自動呼叫 Render 自己的 API。
+> 根目錄的 `api-base.js` 是 GitHub Pages 用的舊檔，Render 上不會被載入。
 
-#### 方式 2：用 Supabase SQL Editor 手動建立
+---
 
-1. Dashboard 左側選 **SQL Editor → New query**。
-2. 貼上下列 DDL 並執行：
+## 6. 步驟 3：自動建立資料表
+
+FastAPI 啟動時會執行 `models.Base.metadata.create_all(bind=engine)`（`backend/main.py:24`），
+只要第 5.2 節的環境變數正確，**第一次部署啟動就會自動建立 5 張表**
+（members、activities、applications、notifications、activity_photos）。
+
+本機也可手動觸發建表（連到 Supabase）：
+
+```bash
+export DB_TYPE='postgres'
+export DB_HOST='db.<你的專案ref>.supabase.co'
+export DB_PORT='5432'
+export DB_NAME='postgres'
+export DB_USERNAME='postgres'
+export DB_PASSWORD='你的密碼'
+
+uv run python -c "from backend import models; from backend.database import engine; models.Base.metadata.create_all(bind=engine); print('Tables created')"
+```
+
+> 需要手動 SQL 建表（例如不想先部署）時，可用 Supabase Dashboard → **SQL Editor**
+> 執行 `docs/database-setup-guide.md` 內附的 DDL（見附錄 A）。
+
+---
+
+## 7. 步驟 4：本機 DBeaver 連上 Supabase
+
+DBeaver 用來看／管理 Supabase 資料（不需額外寫程式）。
+
+### 7.1 建立連線
+
+1. DBeaver → **Database → New Database Connection**。
+2. 選 **PostgreSQL**。
+3. 填寫（Driver settings 預設即可）：
+
+| 欄位 | 值 |
+| --- | --- |
+| **Host** | `db.<你的專案ref>.supabase.co` |
+| **Port** | `5432` |
+| **Database** | `postgres` |
+| **Username** | `postgres` |
+| **Password** | 資料庫密碼 |
+| **SSL** | 勾選 `Require SSL`（主連線設定頁或 Driver 屬性） |
+
+4. 點 **Test Connection**，成功後 **Finish**。
+
+### 7.2 常見連線問題
+
+- **IPv6 timeout**：部分台灣 ISP 對 Supabase direct connection 有 IPv6 問題。解法：
+  - 改用 Pooler：Host `aws-0-ap-southeast-1.pooler.supabase.com`、Port `6543`、Username `postgres.<ref>`；或
+  - Supabase → **Networking** 啟用 IPv4 add-on。
+- 密碼錯誤：到 Supabase **Settings → Database → Reset database password** 重設後更新。
+
+連上後，在 `public` schema 應可看到 5 張表。
+
+---
+
+## 8. 步驟 5：匯入 CSV 資料
+
+匯入在本機執行（連到 Supabase），不佔用 Render。
+
+### 8.1 前置
+
+- 已安裝 `psycopg2-binary`（專案相依已含）。
+- 已設定第 5.2 節的本機環境變數（`DB_TYPE`、`DB_HOST`、`DB_PASSWORD` …）。
+
+### 8.2 執行匯入
+
+```bash
+# 本機
+export DB_TYPE='postgres'
+export DB_HOST='db.<你的專案ref>.supabase.co'
+export DB_PASSWORD='你的密碼'
+
+# 第一次匯入
+uv run python scripts/import_csv.py
+
+# 需要重來時（先清空再匯入）
+uv run python scripts/import_csv.py --reset
+```
+
+腳本（`scripts/import_csv.py`）會自動：
+1. 依外鍵順序匯入：`members → activities → applications → notifications → activity_photos`
+2. 保留 CSV 原 id，不破壞外鍵關聯
+3. 重複執行時略過已存在主鍵（冪等）
+4. **Postgres 自動 `setval` 修正序列**，避免之後 API 新增資料主鍵衝突
+
+預期輸出筆數：
+
+```text
+members.csv       → members         匯入 32 筆
+activities.csv    → activities      匯入 20 筆
+applications.csv  → applications    匯入 34 筆
+notifications.csv → notifications   匯入 21 筆
+activity_photos.csv → activity_photos 匯入 0 筆
+```
+
+---
+
+## 9. 步驟 6：驗證與測試
+
+### 9.1 DBeaver 驗證資料
+
+在 DBeaver 執行：
+
+```sql
+SELECT 'members' AS t, COUNT(*) FROM members
+UNION ALL SELECT 'activities', COUNT(*) FROM activities
+UNION ALL SELECT 'applications', COUNT(*) FROM applications
+UNION ALL SELECT 'notifications', COUNT(*) FROM notifications;
+```
+
+預期：`32 / 20 / 34 / 21`。
+
+抽驗外鍵關聯（例如 members 1 → activities 48 → applications 38）：
+
+```sql
+SELECT id, display_name, city, interests FROM members WHERE id = 1;
+SELECT id, title, category, status FROM activities WHERE id = 32;
+SELECT id, activity_id, member_id, status FROM applications WHERE id = 38;
+```
+
+### 9.2 API 驗證（Render 公開網址）
+
+| 檢查項目 | 位置 | 預期結果 |
+| --- | --- | --- |
+| 健康檢查 | `https://<render-service>.onrender.com/api/health` | `{"status":"ok"}` |
+| API 文件 | `https://<render-service>.onrender.com/docs` | 正常顯示 |
+| 首頁 SPA | `https://<render-service>.onrender.com/` | 活動列表載入 |
+
+登入測試：
+
+```bash
+curl -X POST https://<render-service>.onrender.com/api/login \
+  -H "Content-Type: application/json" \
+  -d '{"email": "jiaming1014@gmail.com", "password": "你的測試密碼"}'
+```
+
+> CSV 中的密碼已雜湊，無法得知明文；建議用 `/api/register` 新建一筆帳號做 CRUD 測試。
+
+---
+
+## 10. 本機開發（非 Render）連線 Supabase
+
+不想動 Render 時，本機跑 FastAPI 同樣連 Supabase：
+
+```bash
+export DB_TYPE='postgres'
+export DB_HOST='db.<你的專案ref>.supabase.co'
+export DB_PORT='5432'
+export DB_NAME='postgres'
+export DB_USERNAME='postgres'
+export DB_PASSWORD='你的密碼'
+
+uv run uvicorn backend.main:app --reload
+```
+
+連線測試（不啟動伺服器）：
+
+```bash
+uv run python -c "from backend.database import engine; c = engine.connect(); print('PostgreSQL connection OK'); c.close()"
+```
+
+---
+
+## 11. 備援方案（僅參考）
+
+| 方案 | 說明 |
+| --- | --- |
+| **MSSQL via Docker** | 原始設計。`DB_TYPE=mssql`，搭配本機 `docker compose up -d db`。 |
+| **SQLite** | 本機快速原型。不設 `DB_TYPE` 即為預設 `sqlite:///./jiu_eat.db`，資料不入雲。 |
+
+---
+
+## 12. 成員假資料 `members_fake`（ML 用，可選）
+
+- 2000 筆 0/1 特徵矩陣（40 興趣 + 6 縣市 + 5 活動分類），供 `ml/train.py` 訓練 FP-Growth。
+- **主程式不需要**，推薦規則已內建在 `recommendation_service.py` 的 `FP_RULES`。
+- 若要重新訓練：先建 `members_fake` 表 → Supabase **Table Editor → Import data from CSV** 匯入該檔 → 修改 `ml/train.py` 連線字串為 Supabase → `python ml/train.py`。
+
+---
+
+## 13. 常見問題
+
+### Render 顯示 `connection failed`（連不上 Supabase）
+
+- 確認 Render 環境變數 `DB_HOST / DB_PORT / DB_NAME / DB_USERNAME / DB_PASSWORD` 與 Supabase Connection string 一致。
+- 確認密碼正確。
+- Supabase 強制 SSL，`database.py` 已內建 `sslmode=require`。
+
+### Render 部署後資料「看起來正常」但每次重啟都不見
+
+- 代表退回 SQLite 了：確認 **`DB_TYPE=postgres`** 已在 Render Environment 設定。
+- 重新部署後資料落在臨時磁碟，`create_all` 重建的是空表。
+
+### 匯入後新增資料主鍵衝突
+
+```text
+duplicate key value violates unique constraint "members_pkey"
+```
+
+- 原因：直接指定 id 匯入，Postgres 的 `SERIAL` 序列沒有前進。
+- 解決：執行 `uv run python scripts/import_csv.py`（內建 `fix_sequences()`）；
+  或手動執行
+  ```sql
+  SELECT setval(pg_get_serial_sequence('members', 'id'), (SELECT MAX(id) FROM members));
+  ```
+
+### DBeaver 連不上（timeout）
+
+- 多為 IPv6 問題：改用 Pooler（`aws-0-ap-southeast-1.pooler.supabase.com:6543`，user 加 `.ref`）或啟用 Supabase IPv4 add-on。
+
+### Supabase 免費專案被暫停
+
+- 閒置約 7 天會進入 Pause，連線失敗；Dashboard 按 **Restore** 即可恢復，資料不會遺失。
+
+---
+
+## 14. 檢查清單
+
+- [ ] Supabase 專案已建立，密碼已保存、未寫入 Git
+- [ ] Render Web Service 建立完成：
+  - Root Directory 留空、Build `pip install -r requirements.txt`
+  - Start `uvicorn backend.main:app --host 0.0.0.0 --port $PORT`
+- [ ] Render Environment 已設定 `DB_TYPE=postgres` 與 `DB_*` 連線變數
+- [ ] Render 部署成功，Logs 無錯誤，`/api/health` 回 `ok`
+- [ ] Supabase Table Editor（或 DBeaver）看到 5 張表
+- [ ] 本機 DBeaver 連上 Supabase（PostgreSQL、SSL require）
+- [ ] 本機執行 `scripts/import_csv.py` 匯入成功
+- [ ] 筆數核對：32 / 20 / 34 / 21（DBeaver COUNT）
+- [ ] 外鍵與中文資料抽驗正常
+- [ ] 登入／註冊 CRUD 測試通過
+- [ ] （選）`members_fake` 是否匯入已決定
+
+---
+
+## 附錄 A：手動建表 DDL（Supabase SQL Editor）
+
+若不想依賴 `create_all` 自動建表，可在 **Supabase → SQL Editor** 執行：
 
 ```sql
 CREATE TABLE members (
@@ -198,7 +456,6 @@ CREATE TABLE notifications (
 CREATE INDEX ix_notifications_id ON notifications (id);
 CREATE INDEX ix_notifications_member_id ON notifications (member_id);
 
--- activity_photos（需先補 Model，見 7.1；或直接建表）
 CREATE TABLE activity_photos (
     id SERIAL PRIMARY KEY,
     activity_id INTEGER NOT NULL REFERENCES activities(id),
@@ -210,475 +467,3 @@ CREATE TABLE activity_photos (
 CREATE INDEX ix_activity_photos_id ON activity_photos (id);
 CREATE INDEX ix_activity_photos_activity_id ON activity_photos (activity_id);
 ```
-
-> 直接手動建表時，請改用 `TIMESTAMP`／`SERIAL`，不要沿用 MSSQL 的 `DATETIME`／`IDENTITY` 寫法。
-
----
-
-## 6. 修改後端連線設定
-
-### 6.1 安裝 PostgreSQL 驅動
-
-目前專案使用 `pyodbc`（MSSQL）。要連 Supabase 需改為 `psycopg2`。
-
-```bash
-uv add "psycopg2-binary>=2.9"
-uv sync
-```
-
-若部署環境只用 `requirements.txt`，也請補上：
-
-```text
-psycopg2-binary>=2.9
-```
-
-### 6.2 修改 `backend/database.py`
-
-現有 `database.py` 的 `ensure_database_exists()` 只對 `mssql` 開頭的連線字串動作，
-連 Postgres 時會直接略過（安全），但連線字串的建構邏輯仍是 MSSQL 導向。
-建議改成支援多種引擎的版本：
-
-```python
-"""
-資料庫連線設定（backend/database.py）
-======================================
-支援 MSSQL（原設計）、PostgreSQL（Supabase）、SQLite（本機）三種引擎。
-連線方式由 DB_TYPE 環境變數決定：
-- postgres / supabase → postgresql+psycopg2（需安裝 psycopg2-binary）
-- mssql              → mssql+pyodbc（需安裝 pyodbc 與 ODBC Driver）
-- sqlite / 其他       → 直接使用 DATABASE_URL
-"""
-
-import os
-from datetime import datetime, timedelta, timezone
-
-from sqlalchemy import URL, create_engine
-from sqlalchemy.orm import declarative_base, sessionmaker
-
-# 台北時區（UTC+8）
-tz_taipei = timezone(timedelta(hours=8), "Asia/Taipei")
-
-
-def taipei_now():
-    return datetime.now(tz_taipei).replace(tzinfo=None)
-
-
-def to_naive_taipei(dt):
-    if isinstance(dt, datetime) and dt.tzinfo is not None:
-        return dt.astimezone(tz_taipei).replace(tzinfo=None)
-    return dt
-
-
-DB_TYPE = os.getenv("DB_TYPE", "sqlite").lower()
-
-if DB_TYPE in ("postgres", "supabase"):
-    # Supabase / PostgreSQL：DB_HOST 範例 db.abc.supabase.co
-    DATABASE_URL = URL.create(
-        drivername="postgresql+psycopg2",
-        username=os.getenv("DB_USERNAME", "postgres"),
-        password=os.environ["DB_PASSWORD"],
-        host=os.environ["DB_HOST"],
-        port=int(os.getenv("DB_PORT", "5432")),
-        database=os.getenv("DB_NAME", "postgres"),
-        query={"sslmode": os.getenv("DB_SSLMODE", "require")},
-    )
-    connect_args = {}
-elif DB_TYPE == "mssql":
-    DATABASE_URL = URL.create(
-        drivername="mssql+pyodbc",
-        username=os.environ["DB_USERNAME"],
-        password=os.environ["DB_PASSWORD"],
-        host=os.environ["DB_HOST"],
-        port=int(os.getenv("DB_PORT", "1433")),
-        database=os.environ["DB_NAME"],
-        query={
-            "driver": os.getenv("DB_DRIVER", "ODBC Driver 18 for SQL Server"),
-            "TrustServerCertificate": os.getenv("DB_TRUST_SERVER_CERTIFICATE", "yes"),
-        },
-    )
-    connect_args = {}
-else:
-    # SQLite（本機快速開發）
-    DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./jiu_eat.db")
-    connect_args = {"check_same_thread": False}
-
-engine = create_engine(DATABASE_URL, connect_args=connect_args, pool_pre_ping=True)
-
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-Base = declarative_base()
-
-
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-```
-
-> 此版本保留 `taipei_now`／`to_naive_taipei`（`backend/common.py` 會用到），
-> 並刪除 MSSQL 專屬的 `ensure_database_exists()`（Supabase／SQLite 都「已存在資料庫」，不需要建庫）。
-
-### 6.3 設定環境變數
-
-macOS / Linux Bash：
-
-```bash
-export DB_TYPE='postgres'
-export DB_HOST='db.你的專案ref.supabase.co'
-export DB_PORT='5432'
-export DB_NAME='postgres'
-export DB_USERNAME='postgres'
-export DB_PASSWORD='你的資料庫密碼'
-```
-
-Windows PowerShell：
-
-```powershell
-$env:DB_TYPE = 'postgres'
-$env:DB_HOST = 'db.你的專案ref.supabase.co'
-$env:DB_PORT = '5432'
-$env:DB_NAME = 'postgres'
-$env:DB_USERNAME = 'postgres'
-$env:DB_PASSWORD = '你的資料庫密碼'
-```
-
-> 密碼請透過環境變數注入，**不要寫進 Git**。
-
-### 6.4 連線測試
-
-```bash
-uv run python -c "from backend.database import engine; c = engine.connect(); print('PostgreSQL connection OK'); c.close()"
-```
-
----
-
-## 7. 補齊 `activity_photos` Model（可選）
-
-`activity_photos.csv` 目前只有表頭、沒有資料，且 `models.py` 未定義此表。
-若要保留未來擴充照片功能，在 `backend/models.py` 加入：
-
-```python
-class ActivityPhoto(Base):
-    """活動照片資料表：儲存活動的圖片與說明"""
-    __tablename__ = "activity_photos"
-
-    id = Column(Integer, primary_key=True, index=True)
-    activity_id = Column(Integer, ForeignKey("activities.id"), nullable=False)
-    image_url = Column(String(500), nullable=False, default="")
-    caption = Column(String(200), default="")
-    sort_order = Column(Integer, default=0)
-    created_at = Column(DateTime, default=taipei_now)
-
-    activity = relationship("Activity", backref="photos")
-```
-
-加入後，`create_all` 會自動建立 `activity_photos` 表。
-
----
-
-## 8. 建立資料表（自動）
-
-執行下列指令讓 FastAPI 啟動時自動建表：
-
-```bash
-uv run python -c "from backend.main import app; from backend import models; from backend.database import engine; models.Base.metadata.create_all(bind=engine); print('Tables created')"
-```
-
-> 或直接啟動伺服器（啟動時會自動 `create_all`，見 `backend/main.py:24`）。
-
----
-
-## 9. 匯入 CSV 資料
-
-### 9.1 建立匯入腳本 `scripts/import_csv.py`
-
-```python
-"""
-CSV 匯入腳本（scripts/import_csv.py）
-=====================================
-將 DB_csv/*.csv 依外鍵順序匯入資料庫。
-
-用法：
-    uv run python scripts/import_csv.py            # 正常匯入（略過已存在的主鍵）
-    uv run python scripts/import_csv.py --reset    # 先清空資料表再匯入
-
-注意：
-- 保留 CSV 內原有 id，避免破壞外鍵關聯。
-- Postgres（Supabase）匯入後會自動 setval 修正序號，
-  否則之後用 API 新增資料會主鍵衝突。
-- members_fake.csv 為 ML 訓練用假資料，預設不匯入；
-  需要時可用 --with-fake 開啟（僅在資料表已存在的狀況下）。
-"""
-
-import argparse
-import csv
-import os
-from datetime import datetime
-
-from sqlalchemy import text
-
-from backend.database import SessionLocal, engine
-
-CSV_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "DB_csv")
-
-# 依外鍵依賴順序定義：檔案 → 資料表
-TABLES = [
-    ("members.csv", "members"),
-    ("activities.csv", "activities"),
-    ("applications.csv", "applications"),
-    ("notifications.csv", "notifications"),
-    ("activity_photos.csv", "activity_photos"),
-]
-
-FALLBACK_TIME = "%Y-%m-%d %H:%M:%S"
-
-
-def parse_time(value):
-    """解析 CSV 時間欄位（可能含或不含微秒）"""
-    if not value:
-        return None
-    try:
-        return datetime.strptime(value, "%Y-%m-%d %H:%M:%S.%f")
-    except ValueError:
-        return datetime.strptime(value, FALLBACK_TIME)
-
-
-def clean(row):
-    """把空字串轉成 None，時間欄位轉成 datetime"""
-    out = {}
-    for k, v in row.items():
-        v = v.strip()
-        if v == "":
-            out[k] = None
-        elif k.endswith("_at") or k in ("activity_date", "deadline"):
-            out[k] = parse_time(v)
-        else:
-            out[k] = v
-    return out
-
-
-def reset(db):
-    """依外鍵順序清空資料表（子表先刪）"""
-    print("清空資料表...")
-    for _, table in reversed(TABLES):
-        db.execute(text(f"DELETE FROM {table}"))
-    db.commit()
-
-
-def fix_sequences(db):
-    """修正 Postgres 序列，避免之後新增資料主鍵衝突"""
-    for _, table in TABLES:
-        try:
-            db.execute(text(
-                f"SELECT setval(pg_get_serial_sequence('{table}', 'id'), "
-                f"(SELECT COALESCE(MAX(id), 1) FROM {table}))"
-            ))
-            print(f"  ✓ 已修正 {table} 的序列")
-        except Exception:
-            print(f"  - 略過 {table}（非 Postgres 或無序列）")
-
-
-def import_csv(db):
-    for filename, table in TABLES:
-        path = os.path.join(CSV_DIR, filename)
-        if not os.path.exists(path):
-            print(f"  - 找不到 {filename}，略過")
-            continue
-        with open(path, encoding="utf-8-sig", newline="") as f:
-            reader = csv.DictReader(f)
-            count = 0
-            for row in reader:
-                data = clean(row)
-                if data.get("id") is None:
-                    continue
-                exists = db.execute(
-                    text(f"SELECT 1 FROM {table} WHERE id = :id"), {"id": int(data["id"])}
-                ).first()
-                if exists:
-                    print(f"  - {table} id={data['id']} 已存在，略過")
-                    continue
-                cols = ", ".join(data.keys())
-                placeholders = ", ".join(f":{k}" for k in data.keys())
-                db.execute(
-                    text(f"INSERT INTO {table} ({cols}) VALUES ({placeholders})"),
-                    {k: (int(v) if k == "id" else v) for k, v in data.items()},
-                )
-                count += 1
-            db.commit()
-            print(f"  ✓ {filename} → {table}：匯入 {count} 筆")
-    fix_sequences(db)
-
-
-def main():
-    parser = argparse.ArgumentParser(description="匯入 DB_csv 到資料庫")
-    parser.add_argument("--reset", action="store_true", help="先清空資料表再匯入")
-    args = parser.parse_args()
-
-    db = SessionLocal()
-    try:
-        if args.reset:
-            reset(db)
-        import_csv(db)
-    finally:
-        db.close()
-
-
-if __name__ == "__main__":
-    main()
-```
-
-### 9.2 執行匯入
-
-```bash
-# 第一次匯入
-uv run python scripts/import_csv.py
-
-# 需要重來時
-uv run python scripts/import_csv.py --reset
-```
-
-> 腳本會自動：
-> 1. 依外鍵順序匯入（members → activities → applications → notifications → activity_photos）
-> 2. 保留 CSV 原 id
-> 3. 重複執行時略過已存在的主鍵（冪等）
-> 4. Postgres 自動 `setval` 修正序號（重要！）
-
----
-
-## 10. 啟動與驗證
-
-```bash
-uv run uvicorn backend.main:app --reload
-```
-
-驗證清單：
-
-| 檢查項目 | 指令／位置 | 預期結果 |
-| --- | --- | --- |
-| 健康檢查 | `http://127.0.0.1:8000/api/health` | `{"status":"ok"}` |
-| API 文件 | `http://127.0.0.1:8000/docs` | 正常顯示 |
-| 會員數 | Supabase Table Editor → members | 32 筆 |
-| 活動數 | Supabase Table Editor → activities | 20 筆 |
-| 申請數 | Supabase Table Editor → applications | 34 筆 |
-| 通知數 | Supabase Table Editor → notifications | 21 筆 |
-| 登入測試 | `POST /api/login`（`jiaming1014@gmail.com`） | 回傳 token 與 member_id |
-
-登入測試範例：
-
-```bash
-curl -X POST http://127.0.0.1:8000/api/login \
-  -H "Content-Type: application/json" \
-  -d '{"email": "jiaming1014@gmail.com", "password": "你的測試密碼"}'
-```
-
-> 密碼已雜湊，CSV 中無法得知明文；建議用 `/api/register` 建立一筆新帳號來測試。
-
----
-
-## 11. 方案 B：MSSQL via Docker（原始設計）
-
-若改用原設計的 MSSQL，只差在第 5 節的建庫方式，其餘步驟相同：
-
-1. 安裝 Microsoft ODBC Driver 18 for SQL Server（本機）。
-2. 修改連線相關設定：
-
-```bash
-export DB_TYPE='mssql'
-export DB_HOST='localhost'
-export DB_PORT='1433'
-export DB_NAME='jiu_eat_1.2'
-export DB_USERNAME='sa'
-export DB_PASSWORD='Aa123456'
-```
-
-3. 啟動 MSSQL（資料保留在 volume）：
-
-```bash
-docker compose up -d db
-```
-
-> 注意：`docker-compose.yml` 中的 backend service 預設會一併啟動。
-> 若只想用本機跑 backend，可只啟動 db：`docker compose up -d db`。
-
-4. 沿用第 6.2 節的 `database.py`（`DB_TYPE=mssql`）即可，`ensure_database_exists()` 會自動建立 `jiu_eat_1.2` 資料庫。
-5. 匯入與驗證步驟同第 9、10 節。
-
-> MSSQL 用 `IDENTITY`，匯入時保留 id 不需修序列（但 `fix_sequences()` 會自動略過）。
-
----
-
-## 12. 成員假資料 `members_fake`（ML 用，可選）
-
-`members_fake.csv`（2000 筆）是 FP-Growth 訓練用假資料，欄位為會員特徵的 0/1 矩陣：
-- 40 個興趣欄位、6 個居住縣市欄位、5 個活動分類欄位
-- `ml/train.py` 會從資料庫的 `members_fake` 表讀取並產生 `FP_RULES`（已內建在 `recommendation_service.py`）
-
-一般情況下**不需要匯入**。若要重新訓練推薦規則：
-
-1. 先在資料庫建立 `members_fake` 表（欄位與 CSV 表頭一致，全部為 0/1 的 `INTEGER` 或 `BOOLEAN`，第一欄 `會員編號` 為主鍵）。
-2. 用 Supabase Dashboard 的 **Table Editor → Import data from CSV** 直接匯入該檔。
-3. 調整 `ml/train.py` 的連線字串為 Supabase（目前寫死 MSSQL），再執行 `python ml/train.py` 重新產生規則。
-
----
-
-## 13. 常見問題
-
-### 連不上 Supabase
-
-```text
-connection failed: sslmode value "require" invalid
-```
-
-- 確認 `DB_HOST`／`DB_PORT`／`DB_NAME` 與 Dashboard 的 Connection string 一致。
-- 確認密碼正確（可在 Settings → Database 重設）。
-- Supabase 強制 SSL，務必帶 `sslmode=require`（本指南已內建）。
-
-### 匯入後新增資料主鍵衝突
-
-```text
-duplicate key value violates unique constraint "members_pkey"
-```
-
-- 原因：直接指定 id 匯入，Postgres 的 `SERIAL` 序號沒有跟著前進。
-- 解決：執行 `uv run python scripts/import_csv.py` 已內建 `fix_sequences()`；
-  或手動執行
-  ```sql
-  SELECT setval(pg_get_serial_sequence('members', 'id'), (SELECT MAX(id) FROM members));
-  ```
-
-### ModuleNotFoundError: psycopg2
-
-```bash
-uv add "psycopg2-binary>=2.9" && uv sync
-```
-
-### 時間格式解析錯誤
-
-- CSV 有 `2026-07-28 11:17:32.370000`（含微秒）與 `2026-08-23 20:15:00`（無微秒）兩種格式，
-  腳本已用 `%Y-%m-%d %H:%M:%S.%f` → `%Y-%m-%d %H:%M:%S` 雙重解析。
-
-### 免費專案被暫停
-
-- Supabase 免費專案閒置約 7 天會進入 Pause 狀態，連線會失敗。
-- 到 Dashboard 按 **Restore** 即可恢復，資料不會遺失。
-
----
-
-## 14. 檢查清單
-
-- [ ] 已決定資料庫引擎（本指南建議 Supabase）
-- [ ] Supabase 專案已建立，並取得 Connection string
-- [ ] 資料庫密碼已設定且未寫入 Git
-- [ ] `psycopg2-binary` 已加入相依並完成 `uv sync`
-- [ ] `backend/database.py` 已改為多引擎版本
-- [ ] 環境變數 `DB_TYPE / DB_HOST / DB_PORT / DB_NAME / DB_USERNAME / DB_PASSWORD` 已設定
-- [ ] Python 連線測試成功（第 6.4 節）
-- [ ] 資料表已建立（`create_all` 或手動 SQL，含 `activity_photos`）
-- [ ] CSV 已依外鍵順序匯入（members → activities → applications → notifications → activity_photos）
-- [ ] Postgres 序列已修正（`fix_sequences`）
-- [ ] FastAPI 可啟動，`/api/health` 與 `/docs` 正常
-- [ ] 各表筆數與 CSV 相符（32 / 20 / 34 / 21）
-- [ ] 登入／註冊 CRUD 測試通過
-- [ ] （選）`members_fake` 是否匯入已決定

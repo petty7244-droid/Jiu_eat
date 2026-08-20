@@ -927,7 +927,7 @@ footer p {
     .hero {
         min-height: 100vh;
         padding: 40px 18px;
-        place-items: center start
+        place-items: center
     }
 
     .hero p {
@@ -940,18 +940,18 @@ footer p {
 
     .hero-inner {
         max-width: 100%;
-        text-align: left
+        text-align: center
     }
 
     .search-bar {
-        margin: 25px 0 0
+        margin: 25px auto 0
     }
 
     .categories {
         display: grid;
         grid-template-columns: repeat(3, 1fr);   /* 分類改為三欄網格 */
         gap: 8px;
-        justify-content: flex-start;
+        justify-content: center;
         margin-top: 20px
     }
 
@@ -1229,7 +1229,7 @@ footer p {
     }
 
     .hero-inner {
-        text-align: left
+        text-align: center
     }
 
     .container {
