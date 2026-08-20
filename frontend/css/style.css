@@ -23,18 +23,27 @@
 /* ── 1. CSS 變數與全域重設 ───────────────────────────── */
 :root {
     /* 品牌色 */
-    --orange: #f05a28;           /* 主色（品牌橘） */
-    --orange-dark: #cf4215;      /* 主色加深（hover 用） */
+    --orange: #f05a28;
+    /* 主色（品牌橘） */
+    --orange-dark: #cf4215;
+    /* 主色加深（hover 用） */
     /* 中性色 */
-    --cream: #fff8f2;            /* 米白背景 */
-    --ink: #23211f;              /* 主文字色（近黑） */
-    --muted: #706b66;            /* 次要文字色（灰） */
-    --line: #e9e3dd;             /* 分隔線 / 邊框色 */
+    --cream: #fff8f2;
+    /* 米白背景 */
+    --ink: #23211f;
+    /* 主文字色（近黑） */
+    --muted: #706b66;
+    /* 次要文字色（灰） */
+    --line: #e9e3dd;
+    /* 分隔線 / 邊框色 */
     --white: #fff;
-    --green: #32895b;            /* 成功狀態色（已核准） */
+    --green: #32895b;
+    /* 成功狀態色（已核准） */
     /* 陰影與圓角 */
-    --shadow: 0 12px 35px rgba(61, 42, 28, .09);   /* 通用卡片陰影 */
-    --radius: 18px               /* 通用圓角大小 */
+    --shadow: 0 12px 35px rgba(61, 42, 28, .09);
+    /* 通用卡片陰影 */
+    --radius: 18px
+        /* 通用圓角大小 */
 }
 
 /* 全域盒模型重設：讓 padding/border 包含在元素寬高內，並清空預設邊距 */
@@ -45,16 +54,20 @@
 }
 
 html {
-    scroll-behavior: smooth     /* 錨點捲動有平滑動畫 */
+    scroll-behavior: smooth
+        /* 錨點捲動有平滑動畫 */
 }
 
 body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans TC", sans-serif;
-    background: #faf9f7;        /* 頁面底色 */
+    background: #faf9f7;
+    /* 頁面底色 */
     color: var(--ink);
-    line-height: 1.65;          /* 行高：提升中文可讀性 */
+    line-height: 1.65;
+    /* 行高：提升中文可讀性 */
     touch-action: manipulation;
-    -webkit-tap-highlight-color: transparent   /* 移除行動裝置點擊反白 */
+    -webkit-tap-highlight-color: transparent
+        /* 移除行動裝置點擊反白 */
 }
 
 /* 表單元件沿用系統字型（避免繼承字型不一致） */
@@ -75,13 +88,15 @@ a {
 
 /* ── 2. 通用工具類別 ─────────────────────────────────── */
 .hidden {
-    display: none !important    /* 強制隱藏（優先於其他 display 設定） */
+    display: none !important
+        /* 強制隱藏（優先於其他 display 設定） */
 }
 
 /* 頁面容器：預設隱藏，僅 .active 顯示（配合 SPA 切頁） */
 .page {
     display: none;
-    min-height: calc(100vh - 72px)   /* 扣掉導覽列高度 */
+    min-height: calc(100vh - 72px)
+        /* 扣掉導覽列高度 */
 }
 
 .page.active {
@@ -91,13 +106,17 @@ a {
 /* ── 3. 頂部導覽列 ───────────────────────────────────── */
 .site-header {
     height: 72px;
-    padding: 0 max(5vw, 24px);       /* 左右留白，隨螢幕寬度調整 */
+    padding: 0 max(5vw, 24px);
+    /* 左右留白，隨螢幕寬度調整 */
     background: rgba(255, 255, 255, .95);
-    backdrop-filter: blur(12px);     /* 毛玻璃效果 */
+    backdrop-filter: blur(12px);
+    /* 毛玻璃效果 */
     display: flex;
     align-items: center;
-    justify-content: space-between;  /* Logo 在左、選單在右 */
-    position: sticky;                /* 捲動時固定在頂部 */
+    justify-content: space-between;
+    /* Logo 在左、選單在右 */
+    position: sticky;
+    /* 捲動時固定在頂部 */
     top: 0;
     z-index: 20;
     border-bottom: 1px solid rgba(233, 227, 221, .7)
@@ -128,7 +147,8 @@ a {
 }
 
 .menu-button {
-    display: none;                   /* 桌面版隱藏，行動版顯示（見下方 media query） */
+    display: none;
+    /* 桌面版隱藏，行動版顯示（見下方 media query） */
     border: 0;
     background: transparent;
     font-size: 25px;
@@ -139,7 +159,8 @@ a {
 }
 
 .header-actions {
-    display: flex;                   /* 右側群組：通知鈴鐺 + 漢堡選單 + 導覽列 */
+    display: flex;
+    /* 右側群組：通知鈴鐺 + 漢堡選單 + 導覽列 */
     align-items: center;
     gap: 14px
 }
@@ -147,10 +168,12 @@ a {
 /* ── 4. 按鈕 ─────────────────────────────────────────── */
 .button {
     border: 1px solid transparent;
-    border-radius: 999px;            /* 橢圓形按鈕 */
+    border-radius: 999px;
+    /* 橢圓形按鈕 */
     padding: 10px 20px;
     font-weight: 750;
-    transition: .2s                  /* hover 動畫 */
+    transition: .2s
+        /* hover 動畫 */
 }
 
 .button-primary {
@@ -160,11 +183,13 @@ a {
 
 .button-primary:hover {
     background: var(--orange-dark);
-    transform: translateY(-1px)      /* 微微上浮 */
+    transform: translateY(-1px)
+        /* 微微上浮 */
 }
 
 .button-outline {
-    border-color: var(--line);       /* 空心按鈕 */
+    border-color: var(--line);
+    /* 空心按鈕 */
     background: #fff
 }
 
@@ -192,7 +217,8 @@ a {
     font-size: 24px;
     letter-spacing: 2.4px;
     font-weight: 850;
-    color: var(--orange)             /* 區塊小標籤（Kicker）樣式 */
+    color: var(--orange)
+        /* 區塊小標籤（Kicker）樣式 */
 }
 
 .hero h1 {
@@ -219,7 +245,8 @@ a {
 }
 
 .search-bar input {
-    flex: 1;                         /* 輸入框自動撐滿剩餘寬度 */
+    flex: 1;
+    /* 輸入框自動撐滿剩餘寬度 */
     min-width: 0;
     border: 0;
     outline: 0;
@@ -243,6 +270,7 @@ a {
     flex-wrap: wrap;
     margin-top: 8px
 }
+
 .interest-chip {
     border: 1px solid var(--line);
     background: #fff;
@@ -250,14 +278,22 @@ a {
     padding: 8px 15px;
     cursor: pointer;
     color: var(--muted);
-    user-select: none                /* 防止點選時反白文字 */
+    user-select: none
+        /* 防止點選時反白文字 */
 }
+
 .interest-chip:has(input:checked) {
-    background: var(--ink);          /* 勾選後反黑顯示 */
+    background: var(--ink);
+    /* 勾選後反黑顯示 */
     border-color: var(--ink);
     color: #fff
 }
-.interest-chip input { display: none }   /* 隱藏原生 checkbox，改用標籤樣式 */
+
+.interest-chip input {
+    display: none
+}
+
+/* 隱藏原生 checkbox，改用標籤樣式 */
 
 .categories {
     display: flex;
@@ -277,14 +313,16 @@ a {
 
 .category-chip:hover,
 .category-chip.active {
-    background: var(--ink);          /* 選中或 hover 反黑 */
+    background: var(--ink);
+    /* 選中或 hover 反黑 */
     border-color: var(--ink);
     color: #fff
 }
 
 /* ── 7. 容器與區塊 ───────────────────────────────────── */
 .container {
-    width: min(1180px, calc(100% - 40px));   /* 最多 1180px，小螢幕時留邊距 */
+    width: min(1180px, calc(100% - 40px));
+    /* 最多 1180px，小螢幕時留邊距 */
     margin: auto
 }
 
@@ -325,7 +363,8 @@ a {
 /* ── 8. 活動卡片 ─────────────────────────────────────── */
 .events-grid {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));   /* 桌面版一行 4 張 */
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    /* 桌面版一行 4 張 */
     gap: 22px
 }
 
@@ -341,18 +380,21 @@ a {
 }
 
 .event-card:hover {
-    transform: translateY(-4px);     /* hover 上浮效果 */
+    transform: translateY(-4px);
+    /* hover 上浮效果 */
     box-shadow: var(--shadow)
 }
 
 .card-img {
     height: 175px;
-    background: #eee center/cover no-repeat;   /* 圖片背景填滿 */
+    background: #eee center/cover no-repeat;
+    /* 圖片背景填滿 */
     position: relative
 }
 
 .card-tag {
-    position: absolute;              /* 疊在圖片左上角的分類標籤 */
+    position: absolute;
+    /* 疊在圖片左上角的分類標籤 */
     left: 12px;
     top: 12px;
     background: rgba(35, 33, 31, .82);
@@ -369,7 +411,8 @@ a {
 .event-title {
     font-size: 16px;
     font-weight: 850;
-    white-space: nowrap;             /* 過長文字省略號處理 */
+    white-space: nowrap;
+    /* 過長文字省略號處理 */
     overflow: hidden;
     text-overflow: ellipsis;
     margin-bottom: 8px
@@ -413,7 +456,8 @@ a {
 
 .filter-panel {
     display: grid;
-    grid-template-columns: 2fr 1fr 1fr auto;   /* 關鍵字(寬) + 分類 + 城市 + 按鈕 */
+    grid-template-columns: 2fr 1fr 1fr auto;
+    /* 關鍵字(寬) + 分類 + 城市 + 按鈕 */
     gap: 12px;
     background: #fff;
     padding: 18px;
@@ -486,7 +530,8 @@ a {
 
 .detail-meta {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);   /* 兩欄顯示活動資訊 */
+    grid-template-columns: repeat(2, 1fr);
+    /* 兩欄顯示活動資訊 */
     gap: 12px;
     margin: 20px 0;
     padding: 20px;
@@ -495,7 +540,8 @@ a {
 }
 
 .detail-description {
-    white-space: pre-wrap;                   /* 保留說明文字的換行 */
+    white-space: pre-wrap;
+    /* 保留說明文字的換行 */
     color: #544f4b;
     margin: 20px 0
 }
@@ -531,7 +577,8 @@ a {
 
 .form-row {
     display: grid;
-    grid-template-columns: 1fr 1fr;          /* 兩欄並排的表單列 */
+    grid-template-columns: 1fr 1fr;
+    /* 兩欄並排的表單列 */
     gap: 16px
 }
 
@@ -546,7 +593,8 @@ a {
     gap: 8px;
     border-bottom: 1px solid var(--line);
     margin-bottom: 24px;
-    overflow-x: auto                          /* 行動版可橫向捲動 */
+    overflow-x: auto
+        /* 行動版可橫向捲動 */
 }
 
 .tab {
@@ -559,7 +607,8 @@ a {
 }
 
 .tab.active {
-    color: var(--orange);                     /* 目前分頁：橘色 + 底部線 */
+    color: var(--orange);
+    /* 目前分頁：橘色 + 底部線 */
     border-bottom: 3px solid var(--orange)
 }
 
@@ -613,7 +662,8 @@ a {
 }
 
 .status {
-    display: inline-block;                    /* 申請狀態徽章 */
+    display: inline-block;
+    /* 申請狀態徽章 */
     padding: 3px 9px;
     border-radius: 99px;
     background: #f1efec;
@@ -622,19 +672,22 @@ a {
 }
 
 .status.approved {
-    color: var(--green);                      /* 已核准：綠色 */
+    color: var(--green);
+    /* 已核准：綠色 */
     background: #e9f6ef
 }
 
 .status.rejected,
 .status.cancelled {
-    color: #a44235;                           /* 已拒絕 / 已取消：紅色 */
+    color: #a44235;
+    /* 已拒絕 / 已取消：紅色 */
     background: #fbecea
 }
 
 /* ── 14. 認證彈窗 ─────────────────────────────────────── */
 .modal {
-    position: fixed;                          /* 全螢幕遮罩 */
+    position: fixed;
+    /* 全螢幕遮罩 */
     inset: 0;
     z-index: 50;
     background: rgba(26, 23, 20, .55);
@@ -673,7 +726,8 @@ a {
 }
 
 .auth-tab {
-    flex: 1;                                  /* 登入/註冊分頁各佔一半 */
+    flex: 1;
+    /* 登入/註冊分頁各佔一半 */
     border: 0;
     background: #f5f2ef;
     padding: 10px;
@@ -692,7 +746,8 @@ a {
 }
 
 .auth-form.active {
-    display: grid                             /* 目前顯示的登入/註冊表單 */
+    display: grid
+        /* 目前顯示的登入/註冊表單 */
 }
 
 .auth-form h2 {
@@ -712,9 +767,11 @@ a {
 
 /* ── 14.5 通知鈴鐺與面板 ─────────────────────────────── */
 .notification-bell {
-    position: relative;                       /* 徽章以絕對定位疊在鈴鐺右上角 */
+    position: relative;
+    /* 徽章以絕對定位疊在鈴鐺右上角 */
     border: 0;
-    background: #ffeadf;                      /* 淺橘圓形底，讓鈴鐺更清楚 */
+    background: #ffeadf;
+    /* 淺橘圓形底，讓鈴鐺更清楚 */
     border-radius: 50%;
     width: 38px;
     height: 38px;
@@ -722,7 +779,8 @@ a {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    color: var(--orange);                     /* 鈴鐺圖示使用品牌橘色 */
+    color: var(--orange);
+    /* 鈴鐺圖示使用品牌橘色 */
     line-height: 1;
     flex-shrink: 0;
     transition: background .2s
@@ -747,7 +805,8 @@ a {
     height: 18px;
     padding: 0 4px;
     border-radius: 99px;
-    background: var(--ink);                   /* 深色徽章，與橘底區分 */
+    background: var(--ink);
+    /* 深色徽章，與橘底區分 */
     color: #fff;
     font-size: 11px;
     font-weight: 800;
@@ -835,7 +894,8 @@ a {
     position: fixed;
     left: 50%;
     top: 50%;
-    z-index: 80;                              /* 置中疊在最上層 */
+    z-index: 80;
+    /* 置中疊在最上層 */
     transform: translate(-50%, -50%);
     background: var(--ink);
     color: #fff;
@@ -874,12 +934,14 @@ footer p {
     .events-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr))
     }
+
     .filter-panel {
         grid-template-columns: 1fr 1fr
     }
 
     .filter-panel .button {
-        grid-column: span 2                   /* 按鈕佔滿一整列 */
+        grid-column: span 2
+            /* 按鈕佔滿一整列 */
     }
 }
 
@@ -898,11 +960,13 @@ footer p {
     }
 
     .menu-button {
-        display: flex                 /* 顯示漢堡選單按鈕（flex 垂直置中，與鈴鐺對齊） */
+        display: flex
+            /* 顯示漢堡選單按鈕（flex 垂直置中，與鈴鐺對齊） */
     }
 
     .main-nav {
-        display: none;                        /* 選單改為下拉式 */
+        display: none;
+        /* 選單改為下拉式 */
         position: absolute;
         left: 14px;
         right: 14px;
@@ -916,7 +980,8 @@ footer p {
     }
 
     .main-nav.open {
-        display: flex                         /* 點選按鈕後展開 */
+        display: flex
+            /* 點選按鈕後展開 */
     }
 
     .main-nav a,
@@ -949,7 +1014,8 @@ footer p {
 
     .categories {
         display: grid;
-        grid-template-columns: repeat(3, 1fr);   /* 分類改為三欄網格 */
+        grid-template-columns: repeat(3, 1fr);
+        /* 分類改為三欄網格 */
         gap: 8px;
         justify-content: center;
         margin-top: 20px
@@ -1015,7 +1081,8 @@ footer p {
     }
 
     .filter-panel {
-        grid-template-columns: 1fr;           /* 篩選面板改為單欄 */
+        grid-template-columns: 1fr;
+        /* 篩選面板改為單欄 */
         padding: 14px;
         gap: 10px
     }
@@ -1043,7 +1110,8 @@ footer p {
     }
 
     .detail-actions {
-        flex-direction: column                /* 按鈕改為直向排列 */
+        flex-direction: column
+            /* 按鈕改為直向排列 */
     }
 
     .detail-actions .button {
@@ -1073,7 +1141,8 @@ footer p {
     }
 
     .form-row {
-        grid-template-columns: 1fr;           /* 表單列改為單欄 */
+        grid-template-columns: 1fr;
+        /* 表單列改為單欄 */
         gap: 14px
     }
 
@@ -1221,7 +1290,7 @@ footer p {
 
     .hero {
         min-height: 92vh;
-        padding: 28px 14px
+        padding: 20px 14px
     }
 
     .hero h1 {
@@ -1246,7 +1315,8 @@ footer p {
     }
 
     .home-page .events-grid {
-        grid-template-columns: 1fr            /* 首頁卡片改為單欄 */
+        grid-template-columns: 1fr
+            /* 首頁卡片改為單欄 */
     }
 
     .card-img {
