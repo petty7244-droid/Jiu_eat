@@ -1289,8 +1289,8 @@ footer p {
     }
 
     .hero {
-        min-height: 92vh;
-        padding: 20px 14px
+        min-height: 80vh;
+        padding: 28px 14px
     }
 
     .hero h1 {
