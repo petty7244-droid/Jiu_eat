@@ -6,7 +6,8 @@
 引擎由 DB_TYPE 環境變數決定：
 - postgres / supabase → postgresql+psycopg2（需安裝 psycopg2-binary，連 Supabase 強制 SSL）
 - mssql              → mssql+pyodbc（需安裝 pyodbc 與 ODBC Driver）
-- sqlite / 其他       → 直接使用 DATABASE_URL（預設 sqlite:///./jiu_eat.db）
+- sqlite             → 直接使用 DATABASE_URL（預設 sqlite:///./jiu_eat.db）
+- APP_ENV=production → 禁止使用非持久化的 SQLite
 
 本模組提供：
 - taipei_now()   ：取得當前台北時間（naive datetime）
@@ -21,6 +22,7 @@ import os          # 讀取環境變數
 from datetime import datetime, timedelta, timezone   # 日期時間與時區處理
 
 from sqlalchemy import URL, create_engine     # 建立資料庫引擎（URL.create 可正確處理密碼特殊字元）
+from sqlalchemy.engine import make_url
 from sqlalchemy.orm import declarative_base, sessionmaker          # ORM 基礎類別與 Session 工廠
 
 # 台北時區（UTC+8）：全系統時間統一以台北時間為準
@@ -47,7 +49,10 @@ def to_naive_taipei(dt):
 
 
 # 引擎型別：postgres / supabase / mssql / sqlite
-DB_TYPE = os.getenv("DB_TYPE", "sqlite").lower()
+DB_TYPE = os.getenv("DB_TYPE", "sqlite").strip().lower()
+
+if DB_TYPE not in ("postgres", "supabase", "mssql", "sqlite"):
+    raise RuntimeError("DB_TYPE 必須是 postgres、supabase、mssql 或 sqlite")
 
 if DB_TYPE in ("postgres", "supabase"):
     # PostgreSQL / Supabase：DB_HOST 範例 db.<project-ref>.supabase.co
@@ -80,8 +85,12 @@ elif DB_TYPE == "mssql":
 else:
     # SQLite：可透過 DATABASE_URL 完全覆寫（例如 sqlite:///./jiu_eat.db）
     DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./jiu_eat.db")
-    # SQLite 需要 check_same_thread=False（允許跨執行緒存取），其他資料庫不需要
-    connect_args = {"check_same_thread": False}
+    # 只有 SQLite 接受 check_same_thread，DATABASE_URL 也可能指向 PostgreSQL。
+    connect_args = {"check_same_thread": False} if make_url(DATABASE_URL).get_backend_name() == "sqlite" else {}
+
+# 容器檔案系統不是永久儲存：正式環境不可悄悄退回 SQLite。
+if os.getenv("APP_ENV", "development").strip().lower() == "production" and make_url(DATABASE_URL).get_backend_name() == "sqlite":
+    raise RuntimeError("正式環境不可使用 SQLite；請設定 DB_TYPE=postgres 與 Supabase 的 DB_* 環境變數")
 
 # 建立資料庫引擎：管理實際的資料庫連線池與方言（dialect）
 engine = create_engine(DATABASE_URL, connect_args=connect_args, pool_pre_ping=True)

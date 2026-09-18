@@ -9,12 +9,15 @@ FastAPI 應用程式主入口（backend/main.py）
 5. 掛載前端靜態檔案（CSS、JS），並提供首頁與健康檢查端點
 """
 
+import os
 from pathlib import Path    # 處理檔案路徑（定位前端靜態目錄）
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware      # CORS 中介層
 from fastapi.responses import FileResponse, JSONResponse               # 回傳檔案（首頁 HTML）
 from fastapi.staticfiles import StaticFiles              # 掛載靜態檔案目錄
+from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
 
 from . import models                          # ORM 模型（用於建立資料表）
 from .database import engine                  # 資料庫引擎
@@ -26,13 +29,13 @@ models.Base.metadata.create_all(bind=engine)
 # 建立 FastAPI 應用程式實例，並設定 API 名稱與版本
 app = FastAPI(title="Jiu-Eat API", version="0.1.0")
 
-# 設定 CORS（允許所有來源，方便開發測試）
-# - allow_origins=["*"]：允許任何網域存取（正式環境建議限定白名單）
+# 設定 CORS：未設定時維持開發相容性；分開部署前端時可設定來源白名單。
+# 同源的 frontend/ 不需要額外設定 CORS_ORIGINS。
 # - allow_credentials=False：本專案登入狀態存於 sessionStorage（非 Cookie），無需攜帶認證資訊；
 #   且 wildcard origin 依規範不可與 credentials 並用
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[origin.strip() for origin in os.getenv("CORS_ORIGINS", "*").split(",") if origin.strip()],
     allow_credentials=False,
     allow_methods=["*"],      # 允許所有 HTTP 方法（GET/POST/PUT/DELETE...）
     allow_headers=["*"],      # 允許所有請求標頭
@@ -69,6 +72,17 @@ app.mount("/js", StaticFiles(directory=FRONTEND_DIR / "js"), name="js")      # �
 @app.get("/api/health", tags=["system"])
 def health():
     """健康檢查端點，回傳 API 是否正常運作（供監控或前端測試連線）"""
+    return {"status": "ok"}
+
+
+@app.get("/api/ready", tags=["system"])
+def ready():
+    """就緒檢查：驗證資料庫可連線，失敗時停止導流而非重啟容器。"""
+    try:
+        with engine.connect() as connection:
+            connection.execute(text("SELECT 1"))
+    except SQLAlchemyError:
+        return JSONResponse(status_code=503, content={"status": "unavailable"})
     return {"status": "ok"}
 
 

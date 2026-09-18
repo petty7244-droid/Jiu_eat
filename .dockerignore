@@ -1,0 +1,12 @@
+.git
+.agents
+.codex
+.venv
+**/__pycache__
+**/*.pyc
+.env
+.env.*
+**/*.db
+DB_csv
+node_modules
+.DS_Store
